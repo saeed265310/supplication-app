@@ -1,20 +1,34 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
+# Supplication App Backend
 
-# Run and deploy your AI Studio app
+This is a simple Node.js and Express server that provides a REST API for the Supplication Counting App. It uses SQLite for data persistence.
 
-This contains everything you need to run your app locally.
+## Setup and Running
 
-View your app in AI Studio: https://ai.studio/apps/drive/1xt6bAgl8Dv62gGV41J7lT56-1qQ3QboY
+### Prerequisites
 
-## Run Locally
+You need to have [Node.js](https://nodejs.org/) installed on your machine.
 
-**Prerequisites:**  Node.js
+### 1. Install Dependencies
 
+Navigate to the directory containing these backend files (`server.js`, `package.json`, etc.) in your terminal and run the following command to install the required packages:
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+```bash
+npm install
+```
+
+### 2. Run the Server
+
+After the installation is complete, you can start the server with this command:
+
+```bash
+npm start
+```
+
+You should see a message in your terminal: `Server is running on http://localhost:3001`.
+
+The server is now running and ready to accept requests from the frontend application. It will automatically create a `database.db` file in the same directory to store all the data.
+
+### Important Notes
+
+*   **JWT Secret:** For this demo, the secret key for signing tokens is hardcoded in `server.js`. In a real production environment, this should be stored securely as an environment variable.
+*   **CORS:** The current setup allows requests from any origin, which is fine for local development. For production, you should configure it to only allow requests from your specific frontend's domain.

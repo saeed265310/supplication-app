@@ -1,59 +1,57 @@
-
 import { useState, useEffect } from 'react';
 import type { User } from '../types';
-
-// NOTE: This is a mock authentication system using localStorage.
-// DO NOT use this in a production environment. Passwords are stored in plain text.
-
-const USERS_STORAGE_KEY = 'supplication_app_users';
+import { apiLogin, apiSignup, apiLogout, apiCheckAuth } from '../utils/api';
 
 export const useAuth = () => {
   const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true); // Add loading state
 
   useEffect(() => {
-    const loggedInUser = localStorage.getItem('supplication_app_currentUser');
-    if (loggedInUser) {
-      setUser(JSON.parse(loggedInUser));
-    }
+    // Check if user is already logged in
+    const checkUser = async () => {
+      try {
+        const authResult = await apiCheckAuth();
+        if (authResult) {
+          setUser(authResult.user);
+        } else {
+          setUser(null);
+        }
+      } catch (error) {
+        console.error("An unexpected error occurred during auth check", error);
+        setUser(null);
+      } finally {
+        setLoading(false);
+      }
+    };
+    checkUser();
   }, []);
 
-  const getUsers = (): Record<string, string> => {
-    const users = localStorage.getItem(USERS_STORAGE_KEY);
-    return users ? JSON.parse(users) : {};
-  };
-
-  const login = (username: string, password: string):boolean => {
-    const users = getUsers();
-    if (users[username] && users[username] === password) {
-      const currentUser = { username };
-      setUser(currentUser);
-      localStorage.setItem('supplication_app_currentUser', JSON.stringify(currentUser));
+  const login = async (username: string, password: string): Promise<boolean> => {
+    try {
+      const { user } = await apiLogin(username, password);
+      setUser(user);
       return true;
+    } catch (error) {
+      console.error("Login failed:", error);
+      return false;
     }
-    return false;
   };
 
-  const signup = (username: string, password: string): boolean => {
-    const users = getUsers();
-    if (users[username]) {
-      return false; // User already exists
+  const signup = async (username: string, password: string): Promise<boolean> => {
+    try {
+      const { user } = await apiSignup(username, password);
+      setUser(user);
+      return true;
+    } catch (error) {
+      console.error("Signup failed:", error);
+      return false;
     }
-    users[username] = password;
-    localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(users));
-    
-    // Also create initial data for the new user
-    localStorage.setItem(`supplication_app_data_${username}`, JSON.stringify({ groups: [] }));
-
-    const currentUser = { username };
-    setUser(currentUser);
-    localStorage.setItem('supplication_app_currentUser', JSON.stringify(currentUser));
-    return true;
   };
 
-  const logout = () => {
+  const logout = async () => {
+    await apiLogout();
     setUser(null);
-    localStorage.removeItem('supplication_app_currentUser');
   };
 
-  return { user, login, signup, logout };
+  return { user, login, signup, logout, loading };
 };

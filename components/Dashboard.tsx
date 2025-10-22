@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import type { User } from '../types';
 import { useUserData } from '../hooks/useUserData';
@@ -12,7 +11,7 @@ interface DashboardProps {
 }
 
 const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
-  const { userData, loading, addGroup, deleteGroup, ...dataActions } = useUserData(user.username);
+  const { userData, loading, addGroup, deleteGroup, ...dataActions } = useUserData(!!user);
   const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
   const [isAddGroupModalOpen, setIsAddGroupModalOpen] = useState(false);
   const [newGroupName, setNewGroupName] = useState('');
