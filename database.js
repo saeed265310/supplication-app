@@ -1,5 +1,17 @@
 const Database = require('better-sqlite3');
-const db = new Database('database.db', { verbose: console.log });
+const path = require('path');
+const fs = require('fs');
+
+// Use /app/data in Docker, or current directory in development
+const dbDir = process.env.NODE_ENV === 'production' ? '/app/data' : '.';
+const dbPath = path.join(dbDir, 'database.db');
+
+// Ensure the directory exists
+if (!fs.existsSync(dbDir)) {
+  fs.mkdirSync(dbDir, { recursive: true });
+}
+
+const db = new Database(dbPath, { verbose: console.log });
 
 // Enable foreign keys
 db.exec('PRAGMA foreign_keys = ON;');
@@ -40,5 +52,7 @@ const createTables = () => {
 };
 
 createTables();
+
+console.log(`Database initialized at: ${dbPath}`);
 
 module.exports = db;
