@@ -12,6 +12,9 @@ RUN npm install
 # Copy application code
 COPY . .
 
+# Re-copy frontend package.json to ensure it's not overwritten by backend package.json
+COPY package.frontend.json ./package.json
+
 # Build argument for API URL (can be overridden at build time)
 ARG VITE_API_URL=http://localhost:3001/api
 
