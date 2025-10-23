@@ -1,8 +1,7 @@
 import type { User, UserData, SupplicationGroup, Supplication } from '../types';
 
-// The app is not using a build tool like Vite, so import.meta.env is undefined.
-// Hardcode the API URL to the development server address.
-const API_BASE_URL = 'http://localhost:3001/api';
+// Use environment variable for API URL, with fallback to localhost for development
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
 
 const getAuthToken = () => {
   return localStorage.getItem('supplication_app_currentUserToken');
@@ -112,6 +111,5 @@ export const apiIncrementCount = (supplicationId: string): Promise<Supplication>
 };
 
 export const apiResetCount = (supplicationId: string): Promise<Supplication> => {
-  // Fix: Corrected the URL from a malformed string to a proper template literal.
   return apiRequest<Supplication>(`/supplications/${supplicationId}/reset`, 'POST');
 };
