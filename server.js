@@ -5,11 +5,52 @@ const jwt = require('jsonwebtoken');
 const db = require('./database.js');
 
 const app = express();
-const PORT = 3001;
-const JWT_SECRET = 'your-super-secret-key-that-should-be-in-an-env-file'; // In production, use environment variables
+const PORT = process.env.PORT || 3001;
+const JWT_SECRET = process.env.JWT_SECRET || 'your-super-secret-key-that-should-be-in-an-env-file';
+const CORS_ORIGIN = process.env.CORS_ORIGIN || '*';
 
-app.use(cors());
+// Warn if using default secret in production
+if (process.env.NODE_ENV === 'production' && JWT_SECRET === 'your-super-secret-key-that-should-be-in-an-env-file') {
+    console.warn('⚠️  WARNING: Using default JWT_SECRET in production! Please set JWT_SECRET environment variable.');
+}
+
+// CORS configuration
+const corsOptions = {
+    origin: CORS_ORIGIN === '*' ? '*' : CORS_ORIGIN.split(',').map(o => o.trim()),
+    credentials: true,
+    optionsSuccessStatus: 200
+};
+
+app.use(cors(corsOptions));
 app.use(express.json());
+
+// Trust proxy for nginx proxy manager / reverse proxy
+app.set('trust proxy', true);
+
+// --- HEALTH CHECK ---
+
+// Health check endpoint for Docker and load balancers
+app.get('/api/health', (req, res) => {
+    try {
+        // Check database connection
+        const result = db.prepare('SELECT 1 as ok').get();
+        if (result && result.ok === 1) {
+            res.status(200).json({
+                status: 'healthy',
+                timestamp: new Date().toISOString(),
+                database: 'connected'
+            });
+        } else {
+            throw new Error('Database check failed');
+        }
+    } catch (error) {
+        res.status(503).json({
+            status: 'unhealthy',
+            timestamp: new Date().toISOString(),
+            error: error.message
+        });
+    }
+});
 
 // --- AUTHENTICATION ---
 
