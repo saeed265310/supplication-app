@@ -5,6 +5,7 @@ export interface User {
 
 export interface Supplication {
   id: string;
+  title?: string;
   text: string;
   currentCount: number;
   target: number;

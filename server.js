@@ -5,11 +5,52 @@ const jwt = require('jsonwebtoken');
 const db = require('./database.js');
 
 const app = express();
-const PORT = 3001;
-const JWT_SECRET = 'your-super-secret-key-that-should-be-in-an-env-file'; // In production, use environment variables
+const PORT = process.env.PORT || 3001;
+const JWT_SECRET = process.env.JWT_SECRET || 'your-super-secret-key-that-should-be-in-an-env-file';
+const CORS_ORIGIN = process.env.CORS_ORIGIN || '*';
 
-app.use(cors());
+// Warn if using default secret in production
+if (process.env.NODE_ENV === 'production' && JWT_SECRET === 'your-super-secret-key-that-should-be-in-an-env-file') {
+    console.warn('⚠️  WARNING: Using default JWT_SECRET in production! Please set JWT_SECRET environment variable.');
+}
+
+// CORS configuration
+const corsOptions = {
+    origin: CORS_ORIGIN === '*' ? '*' : CORS_ORIGIN.split(',').map(o => o.trim()),
+    credentials: true,
+    optionsSuccessStatus: 200
+};
+
+app.use(cors(corsOptions));
 app.use(express.json());
+
+// Trust proxy for nginx proxy manager / reverse proxy
+app.set('trust proxy', true);
+
+// --- HEALTH CHECK ---
+
+// Health check endpoint for Docker and load balancers
+app.get('/api/health', (req, res) => {
+    try {
+        // Check database connection
+        const result = db.prepare('SELECT 1 as ok').get();
+        if (result && result.ok === 1) {
+            res.status(200).json({
+                status: 'healthy',
+                timestamp: new Date().toISOString(),
+                database: 'connected'
+            });
+        } else {
+            throw new Error('Database check failed');
+        }
+    } catch (error) {
+        res.status(503).json({
+            status: 'unhealthy',
+            timestamp: new Date().toISOString(),
+            error: error.message
+        });
+    }
+});
 
 // --- AUTHENTICATION ---
 
@@ -134,12 +175,12 @@ app.delete('/api/groups/:groupId', authenticateToken, (req, res) => {
 
 // Add a supplication
 app.post('/api/supplications', authenticateToken, (req, res) => {
-    const { groupId, text, target } = req.body;
-    const stmt = db.prepare('INSERT INTO supplications (group_id, text, target, currentCount) VALUES (?, ?, ?, ?)');
+    const { groupId, title, text, target } = req.body;
+    const stmt = db.prepare('INSERT INTO supplications (group_id, title, text, target, currentCount) VALUES (?, ?, ?, ?, ?)');
     try {
         // TODO: Add a check to ensure the group belongs to the user
-        const info = stmt.run(groupId, text, target, 0);
-        res.status(201).json({ id: info.lastInsertRowid, group_id: groupId, text, target, currentCount: 0 });
+        const info = stmt.run(groupId, title, text, target, 0);
+        res.status(201).json({ id: info.lastInsertRowid, group_id: groupId, title, text, target, currentCount: 0 });
     } catch(e) {
         res.status(500).json({ message: 'Failed to add supplication' });
     }
@@ -148,11 +189,11 @@ app.post('/api/supplications', authenticateToken, (req, res) => {
 // Update a supplication
 app.put('/api/supplications/:supplicationId', authenticateToken, (req, res) => {
     const { supplicationId } = req.params;
-    const { text, target } = req.body;
+    const { title, text, target } = req.body;
     // TODO: Add a check to ensure the supplication belongs to the user
-    const stmt = db.prepare('UPDATE supplications SET text = ?, target = ? WHERE id = ?');
+    const stmt = db.prepare('UPDATE supplications SET title = ?, text = ?, target = ? WHERE id = ?');
     try {
-        stmt.run(text, target, supplicationId);
+        stmt.run(title, text, target, supplicationId);
         const updatedStmt = db.prepare('SELECT * FROM supplications WHERE id = ?');
         const updatedSupplication = updatedStmt.get(supplicationId);
         res.json(updatedSupplication);

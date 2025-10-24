@@ -19,7 +19,12 @@ const SupplicationCard: React.FC<SupplicationCardProps> = ({ supplication, onInc
     <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 flex flex-col justify-between transition-transform transform hover:scale-105">
       <div>
         <div className="flex justify-between items-start mb-2">
-          <p className="text-lg text-gray-700 dark:text-gray-300 leading-relaxed min-h-[56px]">{supplication.text}</p>
+          <div className="flex-1">
+            {supplication.title && (
+              <h3 className="text-xl font-bold text-gray-800 dark:text-gray-100 mb-2">{supplication.title}</h3>
+            )}
+            <p className="text-lg text-gray-700 dark:text-gray-300 leading-relaxed min-h-[56px]">{supplication.text}</p>
+          </div>
           <div className="flex flex-col gap-2 flex-shrink-0 ms-2">
             <button onClick={onEdit} className="text-gray-400 hover:text-blue-500 dark:hover:text-blue-400"><EditIcon /></button>
             <button onClick={onDelete} className="text-gray-400 hover:text-red-500 dark:hover:text-red-400"><TrashIcon /></button>
