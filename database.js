@@ -39,6 +39,7 @@ const createTables = () => {
     CREATE TABLE IF NOT EXISTS supplications (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         group_id INTEGER NOT NULL,
+        title TEXT,
         text TEXT NOT NULL,
         target INTEGER NOT NULL,
         currentCount INTEGER NOT NULL DEFAULT 0,
@@ -49,6 +50,20 @@ const createTables = () => {
   db.exec(usersTable);
   db.exec(groupsTable);
   db.exec(supplicationsTable);
+
+  // Migration: Add title column to existing tables if it doesn't exist
+  try {
+    const tableInfo = db.prepare("PRAGMA table_info(supplications)").all();
+    const hasTitle = tableInfo.some(col => col.name === 'title');
+
+    if (!hasTitle) {
+      console.log('Adding title column to supplications table...');
+      db.exec('ALTER TABLE supplications ADD COLUMN title TEXT');
+      console.log('Title column added successfully');
+    }
+  } catch (error) {
+    console.error('Error checking/adding title column:', error);
+  }
 };
 
 createTables();

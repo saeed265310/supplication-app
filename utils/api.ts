@@ -94,12 +94,12 @@ export const apiDeleteGroup = (groupId: string): Promise<void> => {
   return apiRequest<void>(`/groups/${groupId}`, 'DELETE');
 };
 
-export const apiAddSupplication = (groupId: string, text: string, target: number): Promise<Supplication> => {
-  return apiRequest<Supplication>(`/supplications`, 'POST', { groupId, text, target });
+export const apiAddSupplication = (groupId: string, title: string, text: string, target: number): Promise<Supplication> => {
+  return apiRequest<Supplication>(`/supplications`, 'POST', { groupId, title, text, target });
 };
 
-export const apiUpdateSupplication = (supplicationId: string, updatedText: string, updatedTarget: number): Promise<Supplication> => {
-  return apiRequest<Supplication>(`/supplications/${supplicationId}`, 'PUT', { text: updatedText, target: updatedTarget });
+export const apiUpdateSupplication = (supplicationId: string, updatedTitle: string, updatedText: string, updatedTarget: number): Promise<Supplication> => {
+  return apiRequest<Supplication>(`/supplications/${supplicationId}`, 'PUT', { title: updatedTitle, text: updatedText, target: updatedTarget });
 };
 
 export const apiDeleteSupplication = (supplicationId: string): Promise<void> => {

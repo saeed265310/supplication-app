@@ -57,19 +57,19 @@ export const useUserData = (isAuthenticated: boolean) => {
     }
   };
   
-  const addSupplication = async (groupId: string, text: string, target: number) => {
+  const addSupplication = async (groupId: string, title: string, text: string, target: number) => {
      try {
-        await apiAddSupplication(groupId, text, target);
+        await apiAddSupplication(groupId, title, text, target);
         await loadData(); // Re-fetch
     } catch (error) {
         console.error("Failed to add supplication:", error);
     }
   };
 
-  const updateSupplication = async (groupId: string, supplicationId: string, updatedText: string, updatedTarget: number) => {
+  const updateSupplication = async (groupId: string, supplicationId: string, updatedTitle: string, updatedText: string, updatedTarget: number) => {
     const previousState = userData;
     try {
-        const updatedSupplication = await apiUpdateSupplication(supplicationId, updatedText, updatedTarget);
+        const updatedSupplication = await apiUpdateSupplication(supplicationId, updatedTitle, updatedText, updatedTarget);
         setUserData(prevData => {
             const newGroups = prevData.groups.map(g => {
                 if (g.id === groupId) {

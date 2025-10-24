@@ -9,8 +9,8 @@ interface GroupViewProps {
   group: SupplicationGroup;
   deleteGroup: (groupId: string) => void;
   dataActions: {
-    addSupplication: (groupId: string, text: string, target: number) => void;
-    updateSupplication: (groupId: string, supplicationId: string, updatedText: string, updatedTarget: number) => void;
+    addSupplication: (groupId: string, title: string, text: string, target: number) => void;
+    updateSupplication: (groupId: string, supplicationId: string, updatedTitle: string, updatedText: string, updatedTarget: number) => void;
     deleteSupplication: (groupId: string, supplicationId: string) => void;
     incrementCount: (groupId: string, supplicationId: string) => void;
     resetCount: (groupId: string, supplicationId: string) => void;
@@ -20,11 +20,13 @@ interface GroupViewProps {
 const GroupView: React.FC<GroupViewProps> = ({ group, dataActions, deleteGroup }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingSupplication, setEditingSupplication] = useState<Supplication | null>(null);
+  const [supplicationTitle, setSupplicationTitle] = useState('');
   const [supplicationText, setSupplicationText] = useState('');
   const [supplicationTarget, setSupplicationTarget] = useState(100);
 
   const openAddModal = () => {
     setEditingSupplication(null);
+    setSupplicationTitle('');
     setSupplicationText('');
     setSupplicationTarget(100);
     setIsModalOpen(true);
@@ -32,17 +34,18 @@ const GroupView: React.FC<GroupViewProps> = ({ group, dataActions, deleteGroup }
 
   const openEditModal = (supplication: Supplication) => {
     setEditingSupplication(supplication);
+    setSupplicationTitle(supplication.title || '');
     setSupplicationText(supplication.text);
     setSupplicationTarget(supplication.target);
     setIsModalOpen(true);
   };
-  
+
   const handleSave = () => {
     if (supplicationText.trim() && supplicationTarget > 0) {
       if (editingSupplication) {
-        dataActions.updateSupplication(group.id, editingSupplication.id, supplicationText, supplicationTarget);
+        dataActions.updateSupplication(group.id, editingSupplication.id, supplicationTitle, supplicationText, supplicationTarget);
       } else {
-        dataActions.addSupplication(group.id, supplicationText, supplicationTarget);
+        dataActions.addSupplication(group.id, supplicationTitle, supplicationText, supplicationTarget);
       }
       setIsModalOpen(false);
     }
@@ -89,6 +92,19 @@ const GroupView: React.FC<GroupViewProps> = ({ group, dataActions, deleteGroup }
 
       <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title={editingSupplication ? "تعديل الذكر" : "إضافة ذكر جديد"}>
         <div className="space-y-4">
+          <div>
+            <label htmlFor="supplicationTitle" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+              عنوان الذكر
+            </label>
+            <input
+              type="text"
+              id="supplicationTitle"
+              value={supplicationTitle}
+              onChange={(e) => setSupplicationTitle(e.target.value)}
+              className="w-full p-2 border border-gray-300 rounded-md mt-1 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+              placeholder="مثال: التسبيح"
+            />
+          </div>
           <div>
             <label htmlFor="supplicationText" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
               نص الذكر
