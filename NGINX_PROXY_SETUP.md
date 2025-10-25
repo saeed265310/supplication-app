@@ -6,8 +6,8 @@ This guide covers setting up nginx Proxy Manager for the Supplication Counter Ap
 
 ```
 [Internet] → [nginx Proxy Manager] → [Docker Containers]
-                ├── yourdomain.com (Frontend on port 80)
-                └── api.yourdomain.com (Backend on port 3001)
+                ├── yourdomain.com (Frontend on port 8081)
+                └── api.yourdomain.com (Backend on port 3002)
 ```
 
 ## Prerequisites
@@ -26,7 +26,7 @@ This guide covers setting up nginx Proxy Manager for the Supplication Counter Ap
    - Domain Names: `api.yourdomain.com`
    - Scheme: `http`
    - Forward Hostname / IP: `localhost` (or container name if on same Docker network)
-   - Forward Port: `3001`
+   - Forward Port: `3002`
    - Cache Assets: ✅
    - Block Common Exploits: ✅
    - Websockets Support: ✅
@@ -181,7 +181,7 @@ location / {
 
 # Proxy API requests to backend
 location /api {
-    proxy_pass http://localhost:3001;
+    proxy_pass http://localhost:3002;
     proxy_set_header Host $host;
     proxy_set_header X-Real-IP $remote_addr;
     proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
@@ -205,7 +205,7 @@ VITE_API_URL=https://yourdomain.com/api
 
 **Solutions:**
 1. Check container is running: `docker ps`
-2. Test backend locally: `curl http://localhost:3001/api/health`
+2. Test backend locally: `curl http://localhost:3002/api/health`
 3. If using container name instead of localhost, ensure nginx Proxy Manager is on same Docker network
 
 ### Issue: CORS Errors

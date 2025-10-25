@@ -84,7 +84,7 @@ docker build -f Dockerfile.frontend \
 ```bash
 docker run -d \
   --name supplication-backend \
-  -p 3001:3001 \
+  -p 3002:3001 \
   -e JWT_SECRET="your-secret-here" \
   -e NODE_ENV=production \
   -e CORS_ORIGIN="https://yourdomain.com" \
@@ -96,7 +96,7 @@ docker run -d \
 ```bash
 docker run -d \
   --name supplication-frontend \
-  -p 80:80 \
+  -p 8081:80 \
   supplication-frontend
 ```
 
