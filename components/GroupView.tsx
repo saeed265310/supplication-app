@@ -8,6 +8,7 @@ import { PlusIcon, TrashIcon } from './icons';
 interface GroupViewProps {
   group: SupplicationGroup;
   deleteGroup: (groupId: string) => void;
+  onDeleteGroup?: () => void;
   dataActions: {
     addSupplication: (groupId: string, title: string, text: string, target: number) => void;
     updateSupplication: (groupId: string, supplicationId: string, updatedTitle: string, updatedText: string, updatedTarget: number) => void;
@@ -17,7 +18,7 @@ interface GroupViewProps {
   };
 }
 
-const GroupView: React.FC<GroupViewProps> = ({ group, dataActions, deleteGroup }) => {
+const GroupView: React.FC<GroupViewProps> = ({ group, dataActions, deleteGroup, onDeleteGroup }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingSupplication, setEditingSupplication] = useState<Supplication | null>(null);
   const [supplicationTitle, setSupplicationTitle] = useState('');
@@ -54,21 +55,26 @@ const GroupView: React.FC<GroupViewProps> = ({ group, dataActions, deleteGroup }
   const handleDeleteGroup = () => {
     if (window.confirm(`هل أنت متأكد من حذف مجموعة "${group.name}"؟ سيتم حذف جميع الأذكار بداخلها.`)) {
         deleteGroup(group.id);
+        if (onDeleteGroup) {
+          onDeleteGroup();
+        }
     }
   };
 
   return (
     <div>
-      <div className="flex justify-between items-center mb-6">
-        <h2 className="text-3xl font-bold text-gray-800 dark:text-gray-100">{group.name}</h2>
-        <div className="flex gap-2">
-            <button onClick={openAddModal} className="flex items-center gap-2 bg-teal-600 text-white px-4 py-2 rounded-md hover:bg-teal-700 transition-colors">
+      {/* Desktop: Show title and buttons in header */}
+      {/* Mobile: Title is in Dashboard header, only show buttons */}
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-6">
+        <h2 className="hidden md:block text-3xl font-bold text-gray-800 dark:text-gray-100">{group.name}</h2>
+        <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+            <button onClick={openAddModal} className="flex items-center justify-center gap-2 bg-teal-600 text-white px-4 py-2 rounded-md hover:bg-teal-700 transition-colors">
                 <PlusIcon />
-                إضافة ذكر
+                <span>إضافة ذكر</span>
             </button>
-            <button onClick={handleDeleteGroup} className="flex items-center gap-2 bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700 transition-colors">
+            <button onClick={handleDeleteGroup} className="flex items-center justify-center gap-2 bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700 transition-colors">
                 <TrashIcon />
-                حذف المجموعة
+                <span>حذف المجموعة</span>
             </button>
         </div>
       </div>
