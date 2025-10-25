@@ -9,6 +9,7 @@ import {
   apiDeleteSupplication,
   apiIncrementCount,
   apiResetCount,
+  apiResetGroupSupplications,
 } from '../utils/api';
 
 export const useUserData = (isAuthenticated: boolean) => {
@@ -142,5 +143,24 @@ export const useUserData = (isAuthenticated: boolean) => {
     }
   };
 
-  return { userData, loading, addGroup, deleteGroup, addSupplication, updateSupplication, deleteSupplication, incrementCount, resetCount };
+  const resetGroupSupplications = async (groupId: string) => {
+    const previousState = userData;
+    try {
+        const updatedSupplications = await apiResetGroupSupplications(groupId);
+        setUserData(prevData => {
+            const newGroups = prevData.groups.map(g => {
+                if (g.id === groupId) {
+                    return { ...g, supplications: updatedSupplications };
+                }
+                return g;
+            });
+            return { ...prevData, groups: newGroups };
+        });
+    } catch (error) {
+        console.error("Failed to reset group supplications:", error);
+        setUserData(previousState);
+    }
+  };
+
+  return { userData, loading, addGroup, deleteGroup, addSupplication, updateSupplication, deleteSupplication, incrementCount, resetCount, resetGroupSupplications };
 };
