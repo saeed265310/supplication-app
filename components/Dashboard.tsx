@@ -11,7 +11,7 @@ interface DashboardProps {
 }
 
 const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
-  const { userData, loading, addGroup, deleteGroup, ...dataActions } = useUserData(!!user);
+  const { userData, loading, addGroup, deleteGroup, resetGroupSupplications, ...dataActions } = useUserData(!!user);
   const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
   const [isAddGroupModalOpen, setIsAddGroupModalOpen] = useState(false);
   const [newGroupName, setNewGroupName] = useState('');
@@ -127,6 +127,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
               group={selectedGroup}
               dataActions={dataActions}
               deleteGroup={deleteGroup}
+              resetGroupSupplications={resetGroupSupplications}
               onDeleteGroup={handleBackToGroups}
             />
           ) : (

@@ -113,3 +113,7 @@ export const apiIncrementCount = (supplicationId: string): Promise<Supplication>
 export const apiResetCount = (supplicationId: string): Promise<Supplication> => {
   return apiRequest<Supplication>(`/supplications/${supplicationId}/reset`, 'POST');
 };
+
+export const apiResetGroupSupplications = (groupId: string): Promise<Supplication[]> => {
+  return apiRequest<Supplication[]>(`/groups/${groupId}/reset`, 'POST');
+};

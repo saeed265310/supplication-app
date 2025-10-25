@@ -4,11 +4,12 @@ import type { Supplication, SupplicationGroup } from '../types';
 import SupplicationCard from './SupplicationCard';
 import SupplicationView from './SupplicationView';
 import Modal from './Modal';
-import { PlusIcon, TrashIcon } from './icons';
+import { PlusIcon, TrashIcon, ResetIcon } from './icons';
 
 interface GroupViewProps {
   group: SupplicationGroup;
   deleteGroup: (groupId: string) => void;
+  resetGroupSupplications: (groupId: string) => void;
   onDeleteGroup?: () => void;
   dataActions: {
     addSupplication: (groupId: string, title: string, text: string, target: number) => void;
@@ -19,7 +20,7 @@ interface GroupViewProps {
   };
 }
 
-const GroupView: React.FC<GroupViewProps> = ({ group, dataActions, deleteGroup, onDeleteGroup }) => {
+const GroupView: React.FC<GroupViewProps> = ({ group, dataActions, deleteGroup, resetGroupSupplications, onDeleteGroup }) => {
   const [selectedSupplicationId, setSelectedSupplicationId] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingSupplication, setEditingSupplication] = useState<Supplication | null>(null);
@@ -109,6 +110,12 @@ const GroupView: React.FC<GroupViewProps> = ({ group, dataActions, deleteGroup, 
     }
   };
 
+  const handleResetGroup = () => {
+    if (window.confirm(`هل أنت متأكد من إعادة تعيين جميع عدادات الأذكار في "${group.name}"؟`)) {
+        resetGroupSupplications(group.id);
+    }
+  };
+
   const selectedSupplication = group.supplications.find(s => s.id === selectedSupplicationId);
 
   // Show supplication detail view if one is selected
@@ -194,6 +201,10 @@ const GroupView: React.FC<GroupViewProps> = ({ group, dataActions, deleteGroup, 
             <button onClick={openAddModal} className="flex items-center justify-center gap-2 bg-teal-600 text-white px-4 py-2 rounded-md hover:bg-teal-700 transition-colors">
                 <PlusIcon />
                 <span>إضافة ذكر</span>
+            </button>
+            <button onClick={handleResetGroup} className="flex items-center justify-center gap-2 bg-yellow-600 text-white px-4 py-2 rounded-md hover:bg-yellow-700 transition-colors">
+                <ResetIcon />
+                <span>إعادة تعيين الكل</span>
             </button>
             <button onClick={handleDeleteGroup} className="flex items-center justify-center gap-2 bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700 transition-colors">
                 <TrashIcon />

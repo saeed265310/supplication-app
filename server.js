@@ -236,6 +236,38 @@ const updateCount = (req, res, isReset = false) => {
 app.post('/api/supplications/:supplicationId/increment', authenticateToken, (req, res) => updateCount(req, res, false));
 app.post('/api/supplications/:supplicationId/reset', authenticateToken, (req, res) => updateCount(req, res, true));
 
+// Reset all supplications in a group
+app.post('/api/groups/:groupId/reset', authenticateToken, (req, res) => {
+    const { groupId } = req.params;
+    const userId = req.user.userId;
+
+    try {
+        // Verify the group belongs to the user
+        const groupStmt = db.prepare('SELECT * FROM groups WHERE id = ? AND userId = ?');
+        const group = groupStmt.get(groupId, userId);
+
+        if (!group) {
+            return res.status(404).json({ message: 'Group not found' });
+        }
+
+        // Reset all supplications in the group
+        const resetStmt = db.prepare(`
+            UPDATE supplications
+            SET currentCount = 0
+            WHERE groupId = ?
+        `);
+        resetStmt.run(groupId);
+
+        // Get all updated supplications
+        const selectStmt = db.prepare('SELECT * FROM supplications WHERE groupId = ?');
+        const supplications = selectStmt.all(groupId);
+
+        res.json(supplications);
+    } catch (e) {
+        res.status(500).json({ message: 'Failed to reset group supplications' });
+    }
+});
+
 
 app.listen(PORT, () => {
     console.log(`Server is running on http://localhost:${PORT}`);
