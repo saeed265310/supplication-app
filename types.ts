@@ -20,3 +20,27 @@ export interface SupplicationGroup {
 export interface UserData {
   groups: SupplicationGroup[];
 }
+
+export interface StatisticsSummary {
+  today: number;
+  week: number;
+  month: number;
+  allTime: number;
+  totalSupplications: number;
+  completedSupplications: number;
+}
+
+export interface DailyCount {
+  date: string;
+  total: number;
+}
+
+export interface TopSupplication {
+  id: string;
+  title: string;
+  text: string;
+  currentCount: number;
+  target: number;
+  totalCounted: number;
+  groupName: string;
+}

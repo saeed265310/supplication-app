@@ -117,3 +117,17 @@ export const apiResetCount = (supplicationId: string): Promise<Supplication> => 
 export const apiResetGroupSupplications = (groupId: string): Promise<Supplication[]> => {
   return apiRequest<Supplication[]>(`/groups/${groupId}/reset`, 'POST');
 };
+
+// --- Statistics ---
+
+export const apiGetStatisticsSummary = (): Promise<import('../types').StatisticsSummary> => {
+  return apiRequest<import('../types').StatisticsSummary>('/statistics/summary', 'GET');
+};
+
+export const apiGetDailyCounts = (days: number = 30): Promise<import('../types').DailyCount[]> => {
+  return apiRequest<import('../types').DailyCount[]>(`/statistics/daily?days=${days}`, 'GET');
+};
+
+export const apiGetTopSupplications = (limit: number = 5): Promise<import('../types').TopSupplication[]> => {
+  return apiRequest<import('../types').TopSupplication[]>(`/statistics/top?limit=${limit}`, 'GET');
+};
