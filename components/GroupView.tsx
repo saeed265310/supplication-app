@@ -51,6 +51,44 @@ const GroupView: React.FC<GroupViewProps> = ({ group, dataActions, deleteGroup, 
     setSelectedSupplicationId(null);
   };
 
+  const handleIncrementWithAutoAdvance = (supplicationId: string) => {
+    const supplication = group.supplications.find(s => s.id === supplicationId);
+    if (!supplication) return;
+
+    // Increment the count
+    dataActions.incrementCount(group.id, supplicationId);
+
+    // Check if this increment will reach the target
+    if (supplication.currentCount + 1 >= supplication.target) {
+      // Find current index
+      const currentIndex = group.supplications.findIndex(s => s.id === supplicationId);
+
+      // Check if there's a next supplication
+      if (currentIndex < group.supplications.length - 1) {
+        // Move to next supplication after a brief delay
+        setTimeout(() => {
+          setSelectedSupplicationId(group.supplications[currentIndex + 1].id);
+        }, 800);
+      } else {
+        // This was the last supplication - check if all are complete
+        const allComplete = group.supplications.every((s, idx) => {
+          if (idx === currentIndex) {
+            // For the current one, check if it will be complete after this increment
+            return s.currentCount + 1 >= s.target;
+          }
+          return s.currentCount >= s.target;
+        });
+
+        if (allComplete) {
+          // Show completion state after brief delay
+          setTimeout(() => {
+            setSelectedSupplicationId(null);
+          }, 1000);
+        }
+      }
+    }
+  };
+
   const handleSave = () => {
     if (supplicationText.trim() && supplicationTarget > 0) {
       if (editingSupplication) {
@@ -81,10 +119,13 @@ const GroupView: React.FC<GroupViewProps> = ({ group, dataActions, deleteGroup, 
           supplication={selectedSupplication}
           groupName={group.name}
           onBack={handleBackToGroup}
-          onIncrement={() => dataActions.incrementCount(group.id, selectedSupplication.id)}
+          onIncrement={() => handleIncrementWithAutoAdvance(selectedSupplication.id)}
           onReset={() => dataActions.resetCount(group.id, selectedSupplication.id)}
           onDelete={() => dataActions.deleteSupplication(group.id, selectedSupplication.id)}
           onEdit={() => openEditModal(selectedSupplication)}
+          isLastInGroup={group.supplications[group.supplications.length - 1]?.id === selectedSupplication.id}
+          totalSupplications={group.supplications.length}
+          currentPosition={group.supplications.findIndex(s => s.id === selectedSupplication.id) + 1}
         />
 
         {/* Edit modal */}
