@@ -55,40 +55,91 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
           {loading ? (
             <p className="text-center text-gray-500 dark:text-gray-400 py-4">جار التحميل...</p>
           ) : userData.groups.length === 0 ? (
-            <p className="text-center text-gray-500 dark:text-gray-400 py-4">لا توجد مجموعات. قم بإضافة مجموعة جديدة.</p>
+            <div className="text-center py-8">
+              <div className="mb-4">
+                <svg className="h-16 w-16 mx-auto text-gray-400 dark:text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                </svg>
+              </div>
+              <p className="text-gray-500 dark:text-gray-400 mb-2">لا توجد مجموعات</p>
+              <p className="text-sm text-gray-400 dark:text-gray-500">قم بإضافة مجموعة جديدة للبدء</p>
+            </div>
           ) : (
-            <div className="space-y-3">
-              {userData.groups.map(group => (
-                <div
-                  key={group.id}
-                  className={`p-4 rounded-lg cursor-pointer transition-all duration-200 ${
-                    selectedGroupId === group.id
-                      ? 'bg-teal-600 dark:bg-teal-700 text-white shadow-lg transform scale-105'
-                      : 'bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 shadow-md hover:shadow-lg'
-                  }`}
-                  onClick={() => handleSelectGroup(group.id)}>
-                  <div className="flex items-center justify-between">
-                    <h3 className={`text-lg font-bold ${
+            <div className="space-y-4">
+              {userData.groups.map(group => {
+                const totalSupplications = group.supplications.length;
+                const completedSupplications = group.supplications.filter(s => s.currentCount >= s.target).length;
+                const progress = totalSupplications > 0 ? (completedSupplications / totalSupplications) * 100 : 0;
+
+                return (
+                  <div
+                    key={group.id}
+                    className={`p-6 rounded-xl cursor-pointer transition-all duration-200 ${
                       selectedGroupId === group.id
-                        ? 'text-white'
-                        : 'text-gray-800 dark:text-gray-100'
-                    }`}>
-                      {group.name}
-                    </h3>
-                    <svg
-                      className={`h-5 w-5 ${
-                        selectedGroupId === group.id
-                          ? 'text-white'
-                          : 'text-gray-400 dark:text-gray-500'
-                      }`}
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                    </svg>
+                        ? 'bg-gradient-to-br from-teal-500 to-teal-600 dark:from-teal-600 dark:to-teal-700 text-white shadow-xl transform scale-105'
+                        : 'bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 shadow-lg hover:shadow-xl'
+                    }`}
+                    onClick={() => handleSelectGroup(group.id)}>
+                    <div className="space-y-3">
+                      {/* Header with title and arrow */}
+                      <div className="flex items-center justify-between">
+                        <h3 className={`text-2xl font-bold ${
+                          selectedGroupId === group.id
+                            ? 'text-white'
+                            : 'text-gray-800 dark:text-gray-100'
+                        }`}>
+                          {group.name}
+                        </h3>
+                        <svg
+                          className={`h-6 w-6 ${
+                            selectedGroupId === group.id
+                              ? 'text-white'
+                              : 'text-gray-400 dark:text-gray-500'
+                          }`}
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                        </svg>
+                      </div>
+
+                      {/* Stats */}
+                      {totalSupplications > 0 && (
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between text-sm">
+                            <span className={selectedGroupId === group.id ? 'text-teal-50' : 'text-gray-600 dark:text-gray-300'}>
+                              {totalSupplications} {totalSupplications === 1 ? 'ذكر' : 'أذكار'}
+                            </span>
+                            <span className={selectedGroupId === group.id ? 'text-teal-50 font-semibold' : 'text-gray-600 dark:text-gray-300 font-semibold'}>
+                              {completedSupplications} / {totalSupplications} مكتمل
+                            </span>
+                          </div>
+
+                          {/* Progress bar */}
+                          <div className={`w-full rounded-full h-2.5 ${
+                            selectedGroupId === group.id ? 'bg-teal-400 bg-opacity-30' : 'bg-gray-200 dark:bg-gray-600'
+                          }`}>
+                            <div
+                              className={`h-2.5 rounded-full transition-all duration-500 ${
+                                selectedGroupId === group.id ? 'bg-white' : 'bg-teal-500'
+                              }`}
+                              style={{ width: `${progress}%` }}
+                            ></div>
+                          </div>
+                        </div>
+                      )}
+
+                      {totalSupplications === 0 && (
+                        <p className={`text-sm ${
+                          selectedGroupId === group.id ? 'text-teal-50' : 'text-gray-500 dark:text-gray-400'
+                        }`}>
+                          مجموعة فارغة
+                        </p>
+                      )}
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
