@@ -218,17 +218,37 @@ app.delete('/api/supplications/:supplicationId', authenticateToken, (req, res) =
 // Increment/Reset Count
 const updateCount = (req, res, isReset = false) => {
     const { supplicationId } = req.params;
-    // TODO: Add a check to ensure the supplication belongs to the user
-    const updateStmt = isReset
-        ? db.prepare('UPDATE supplications SET currentCount = 0 WHERE id = ?')
-        : db.prepare('UPDATE supplications SET currentCount = currentCount + 1 WHERE id = ?');
-    
+    const userId = req.user.id;
+
     try {
-        updateStmt.run(supplicationId);
+        // Get supplication details for history tracking
         const selectStmt = db.prepare('SELECT * FROM supplications WHERE id = ?');
+        const supplication = selectStmt.get(supplicationId);
+
+        if (!supplication) {
+            return res.status(404).json({ message: 'Supplication not found' });
+        }
+
+        // Update count
+        const updateStmt = isReset
+            ? db.prepare('UPDATE supplications SET currentCount = 0 WHERE id = ?')
+            : db.prepare('UPDATE supplications SET currentCount = currentCount + 1 WHERE id = ?');
+
+        updateStmt.run(supplicationId);
+
+        // Record history for increments (not resets)
+        if (!isReset) {
+            const historyStmt = db.prepare(`
+                INSERT INTO count_history (user_id, group_id, supplication_id, count, timestamp)
+                VALUES (?, ?, ?, 1, ?)
+            `);
+            historyStmt.run(userId, supplication.group_id, supplicationId, Date.now());
+        }
+
         const updatedSupplication = selectStmt.get(supplicationId);
         res.json(updatedSupplication);
     } catch (e) {
+        console.error('Failed to update count:', e);
         res.status(500).json({ message: 'Failed to update count' });
     }
 };
@@ -266,6 +286,141 @@ app.post('/api/groups/:groupId/reset', authenticateToken, (req, res) => {
     } catch (e) {
         console.error('Error resetting group supplications:', e);
         res.status(500).json({ message: 'Failed to reset group supplications' });
+    }
+});
+
+// --- STATISTICS ENDPOINTS ---
+
+// Get statistics summary
+app.get('/api/statistics/summary', authenticateToken, (req, res) => {
+    const userId = req.user.id;
+
+    try {
+        const now = Date.now();
+        const oneDayAgo = now - (24 * 60 * 60 * 1000);
+        const oneWeekAgo = now - (7 * 24 * 60 * 60 * 1000);
+        const oneMonthAgo = now - (30 * 24 * 60 * 60 * 1000);
+
+        // Today's count
+        const todayStmt = db.prepare(`
+            SELECT SUM(count) as total
+            FROM count_history
+            WHERE user_id = ? AND timestamp >= ?
+        `);
+        const todayResult = todayStmt.get(userId, oneDayAgo);
+
+        // Week's count
+        const weekStmt = db.prepare(`
+            SELECT SUM(count) as total
+            FROM count_history
+            WHERE user_id = ? AND timestamp >= ?
+        `);
+        const weekResult = weekStmt.get(userId, oneWeekAgo);
+
+        // Month's count
+        const monthStmt = db.prepare(`
+            SELECT SUM(count) as total
+            FROM count_history
+            WHERE user_id = ? AND timestamp >= ?
+        `);
+        const monthResult = monthStmt.get(userId, oneMonthAgo);
+
+        // All-time count
+        const allTimeStmt = db.prepare(`
+            SELECT SUM(count) as total
+            FROM count_history
+            WHERE user_id = ?
+        `);
+        const allTimeResult = allTimeStmt.get(userId);
+
+        // Total supplications
+        const totalSupplicationsStmt = db.prepare(`
+            SELECT COUNT(*) as total
+            FROM supplications s
+            JOIN groups g ON s.group_id = g.id
+            WHERE g.user_id = ?
+        `);
+        const totalSupplications = totalSupplicationsStmt.get(userId);
+
+        // Completed supplications
+        const completedStmt = db.prepare(`
+            SELECT COUNT(*) as total
+            FROM supplications s
+            JOIN groups g ON s.group_id = g.id
+            WHERE g.user_id = ? AND s.currentCount >= s.target
+        `);
+        const completedSupplications = completedStmt.get(userId);
+
+        res.json({
+            today: todayResult?.total || 0,
+            week: weekResult?.total || 0,
+            month: monthResult?.total || 0,
+            allTime: allTimeResult?.total || 0,
+            totalSupplications: totalSupplications?.total || 0,
+            completedSupplications: completedSupplications?.total || 0
+        });
+    } catch (e) {
+        console.error('Failed to get statistics summary:', e);
+        res.status(500).json({ message: 'Failed to get statistics' });
+    }
+});
+
+// Get daily counts for charts (last 30 days)
+app.get('/api/statistics/daily', authenticateToken, (req, res) => {
+    const userId = req.user.id;
+    const days = parseInt(req.query.days) || 30;
+
+    try {
+        const now = Date.now();
+        const startTime = now - (days * 24 * 60 * 60 * 1000);
+
+        const stmt = db.prepare(`
+            SELECT
+                DATE(timestamp / 1000, 'unixepoch') as date,
+                SUM(count) as total
+            FROM count_history
+            WHERE user_id = ? AND timestamp >= ?
+            GROUP BY DATE(timestamp / 1000, 'unixepoch')
+            ORDER BY date DESC
+        `);
+
+        const results = stmt.all(userId, startTime);
+        res.json(results);
+    } catch (e) {
+        console.error('Failed to get daily statistics:', e);
+        res.status(500).json({ message: 'Failed to get daily statistics' });
+    }
+});
+
+// Get top supplications by count
+app.get('/api/statistics/top', authenticateToken, (req, res) => {
+    const userId = req.user.id;
+    const limit = parseInt(req.query.limit) || 5;
+
+    try {
+        const stmt = db.prepare(`
+            SELECT
+                s.id,
+                s.title,
+                s.text,
+                s.currentCount,
+                s.target,
+                SUM(ch.count) as totalCounted,
+                g.name as groupName
+            FROM supplications s
+            JOIN groups g ON s.group_id = g.id
+            LEFT JOIN count_history ch ON s.id = ch.supplication_id
+            WHERE g.user_id = ?
+            GROUP BY s.id
+            ORDER BY totalCounted DESC
+            LIMIT ?
+        `);
+
+        const results = stmt.all(userId, limit);
+        res.json(results);
+    } catch (e) {
+        console.error('Failed to get top supplications:', e);
+        res.status(500).json({ message: 'Failed to get top supplications' });
     }
 });
 
