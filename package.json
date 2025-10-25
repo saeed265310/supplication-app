@@ -7,7 +7,12 @@
     "start": "node server.js",
     "dev": "node server.js"
   },
-  "keywords": ["supplication", "dhikr", "islamic", "counter"],
+  "keywords": [
+    "supplication",
+    "dhikr",
+    "islamic",
+    "counter"
+  ],
   "author": "",
   "license": "ISC",
   "dependencies": {
@@ -16,5 +21,8 @@
     "cors": "^2.8.5",
     "express": "^4.19.2",
     "jsonwebtoken": "^9.0.2"
+  },
+  "devDependencies": {
+    "sharp": "^0.34.4"
   }
 }
