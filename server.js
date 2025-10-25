@@ -239,11 +239,11 @@ app.post('/api/supplications/:supplicationId/reset', authenticateToken, (req, re
 // Reset all supplications in a group
 app.post('/api/groups/:groupId/reset', authenticateToken, (req, res) => {
     const { groupId } = req.params;
-    const userId = req.user.userId;
+    const userId = req.user.id;
 
     try {
         // Verify the group belongs to the user
-        const groupStmt = db.prepare('SELECT * FROM groups WHERE id = ? AND userId = ?');
+        const groupStmt = db.prepare('SELECT * FROM groups WHERE id = ? AND user_id = ?');
         const group = groupStmt.get(groupId, userId);
 
         if (!group) {
@@ -254,16 +254,17 @@ app.post('/api/groups/:groupId/reset', authenticateToken, (req, res) => {
         const resetStmt = db.prepare(`
             UPDATE supplications
             SET currentCount = 0
-            WHERE groupId = ?
+            WHERE group_id = ?
         `);
         resetStmt.run(groupId);
 
         // Get all updated supplications
-        const selectStmt = db.prepare('SELECT * FROM supplications WHERE groupId = ?');
+        const selectStmt = db.prepare('SELECT * FROM supplications WHERE group_id = ?');
         const supplications = selectStmt.all(groupId);
 
         res.json(supplications);
     } catch (e) {
+        console.error('Error resetting group supplications:', e);
         res.status(500).json({ message: 'Failed to reset group supplications' });
     }
 });
