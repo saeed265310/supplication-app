@@ -424,6 +424,27 @@ app.get('/api/statistics/top', authenticateToken, (req, res) => {
     }
 });
 
+// --- LIBRARY ENDPOINT ---
+
+// Get Hisnul Muslim library data
+app.get('/api/library', (req, res) => {
+    try {
+        const fs = require('fs');
+        const path = require('path');
+        const libraryPath = path.join(__dirname, 'data', 'hisnul-muslim.json');
+
+        if (!fs.existsSync(libraryPath)) {
+            return res.status(404).json({ message: 'Library not found' });
+        }
+
+        const libraryData = JSON.parse(fs.readFileSync(libraryPath, 'utf8'));
+        res.json(libraryData);
+    } catch (error) {
+        console.error('Failed to load library:', error);
+        res.status(500).json({ message: 'Failed to load library' });
+    }
+});
+
 
 app.listen(PORT, () => {
     console.log(`Server is running on http://localhost:${PORT}`);

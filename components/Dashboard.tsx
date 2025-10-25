@@ -3,6 +3,7 @@ import type { User } from '../types';
 import { useUserData } from '../hooks/useUserData';
 import GroupView from './GroupView';
 import Statistics from './Statistics';
+import Library from './Library';
 import Modal from './Modal';
 import { PlusIcon, LogoutIcon, ArrowRightIcon } from './icons';
 
@@ -14,7 +15,7 @@ interface DashboardProps {
 const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
   const { userData, loading, addGroup, deleteGroup, resetGroupSupplications, ...dataActions } = useUserData(!!user);
   const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
-  const [view, setView] = useState<'groups' | 'statistics'>('groups');
+  const [view, setView] = useState<'groups' | 'statistics' | 'library'>('groups');
   const [isAddGroupModalOpen, setIsAddGroupModalOpen] = useState(false);
   const [newGroupName, setNewGroupName] = useState('');
 
@@ -56,7 +57,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
         <div className="flex gap-2 mb-4">
           <button
             onClick={() => setView('groups')}
-            className={`flex-1 py-2 px-3 rounded-md text-sm font-medium transition-colors ${
+            className={`flex-1 py-2 px-2 rounded-md text-xs font-medium transition-colors ${
               view === 'groups'
                 ? 'bg-teal-600 text-white'
                 : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
@@ -65,12 +66,21 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
           </button>
           <button
             onClick={() => setView('statistics')}
-            className={`flex-1 py-2 px-3 rounded-md text-sm font-medium transition-colors ${
+            className={`flex-1 py-2 px-2 rounded-md text-xs font-medium transition-colors ${
               view === 'statistics'
                 ? 'bg-teal-600 text-white'
                 : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
             }`}>
             الإحصائيات
+          </button>
+          <button
+            onClick={() => setView('library')}
+            className={`flex-1 py-2 px-2 rounded-md text-xs font-medium transition-colors ${
+              view === 'library'
+                ? 'bg-teal-600 text-white'
+                : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
+            }`}>
+            المكتبة
           </button>
         </div>
 
@@ -84,6 +94,17 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
               </svg>
             </div>
             <p className="text-sm text-gray-600 dark:text-gray-300">عرض تفصيلي للإحصائيات</p>
+          </div>
+        )}
+
+        {view === 'library' && (
+          <div className="text-center py-8">
+            <div className="mb-3">
+              <svg className="h-12 w-12 mx-auto text-teal-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+              </svg>
+            </div>
+            <p className="text-sm text-gray-600 dark:text-gray-300">استعراض حصن المسلم</p>
           </div>
         )}
 
@@ -210,6 +231,11 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
         <div className="flex-1 overflow-y-auto p-4 md:p-6">
           {view === 'statistics' ? (
             <Statistics />
+          ) : view === 'library' ? (
+            <Library
+              userGroups={userData.groups}
+              onImportSupplication={dataActions.addSupplication}
+            />
           ) : loading ? (
             <div className="flex items-center justify-center h-full">
               <p className="text-gray-600 dark:text-gray-300">جار التحميل...</p>
