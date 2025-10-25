@@ -50,27 +50,46 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
         </div>
         <p className="mb-4 text-sm text-gray-600 dark:text-gray-300">مرحباً, {user.username}</p>
 
-        <h2 className="text-lg font-semibold mb-2 text-gray-700 dark:text-gray-200">مجموعات الأذكار</h2>
+        <h2 className="text-lg font-semibold mb-3 text-gray-700 dark:text-gray-200">مجموعات الأذكار</h2>
         <div className="flex-grow overflow-y-auto">
           {loading ? (
             <p className="text-center text-gray-500 dark:text-gray-400 py-4">جار التحميل...</p>
           ) : userData.groups.length === 0 ? (
             <p className="text-center text-gray-500 dark:text-gray-400 py-4">لا توجد مجموعات. قم بإضافة مجموعة جديدة.</p>
           ) : (
-            <ul>
+            <div className="space-y-3">
               {userData.groups.map(group => (
-                <li key={group.id}
-                    className={`p-3 my-1 rounded-md cursor-pointer transition-colors ${selectedGroupId === group.id ? 'bg-teal-100 dark:bg-teal-900 text-teal-700 dark:text-teal-200' : 'hover:bg-gray-200 dark:hover:bg-gray-700'}`}
-                    onClick={() => handleSelectGroup(group.id)}>
+                <div
+                  key={group.id}
+                  className={`p-4 rounded-lg cursor-pointer transition-all duration-200 ${
+                    selectedGroupId === group.id
+                      ? 'bg-teal-600 dark:bg-teal-700 text-white shadow-lg transform scale-105'
+                      : 'bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 shadow-md hover:shadow-lg'
+                  }`}
+                  onClick={() => handleSelectGroup(group.id)}>
                   <div className="flex items-center justify-between">
-                    <span className="font-medium">{group.name}</span>
-                    <span className="text-sm text-gray-500 dark:text-gray-400">
-                      {group.supplications.length} {group.supplications.length === 1 ? 'ذكر' : 'أذكار'}
-                    </span>
+                    <h3 className={`text-lg font-bold ${
+                      selectedGroupId === group.id
+                        ? 'text-white'
+                        : 'text-gray-800 dark:text-gray-100'
+                    }`}>
+                      {group.name}
+                    </h3>
+                    <svg
+                      className={`h-5 w-5 ${
+                        selectedGroupId === group.id
+                          ? 'text-white'
+                          : 'text-gray-400 dark:text-gray-500'
+                      }`}
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                    </svg>
                   </div>
-                </li>
+                </div>
               ))}
-            </ul>
+            </div>
           )}
         </div>
         <button onClick={() => setIsAddGroupModalOpen(true)} className="mt-4 w-full flex items-center justify-center gap-2 bg-teal-600 text-white p-3 rounded-md hover:bg-teal-700 transition-colors">
