@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import type { User } from '../types';
 import { useUserData } from '../hooks/useUserData';
 import GroupView from './GroupView';
+import Statistics from './Statistics';
 import Modal from './Modal';
 import { PlusIcon, LogoutIcon, ArrowRightIcon } from './icons';
 
@@ -13,6 +14,7 @@ interface DashboardProps {
 const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
   const { userData, loading, addGroup, deleteGroup, resetGroupSupplications, ...dataActions } = useUserData(!!user);
   const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
+  const [view, setView] = useState<'groups' | 'statistics'>('groups');
   const [isAddGroupModalOpen, setIsAddGroupModalOpen] = useState(false);
   const [newGroupName, setNewGroupName] = useState('');
 
@@ -50,11 +52,45 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
         </div>
         <p className="mb-4 text-sm text-gray-600 dark:text-gray-300">مرحباً, {user.username}</p>
 
-        <h2 className="text-lg font-semibold mb-3 text-gray-700 dark:text-gray-200">مجموعات الأذكار</h2>
+        {/* Navigation Tabs */}
+        <div className="flex gap-2 mb-4">
+          <button
+            onClick={() => setView('groups')}
+            className={`flex-1 py-2 px-3 rounded-md text-sm font-medium transition-colors ${
+              view === 'groups'
+                ? 'bg-teal-600 text-white'
+                : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
+            }`}>
+            المجموعات
+          </button>
+          <button
+            onClick={() => setView('statistics')}
+            className={`flex-1 py-2 px-3 rounded-md text-sm font-medium transition-colors ${
+              view === 'statistics'
+                ? 'bg-teal-600 text-white'
+                : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
+            }`}>
+            الإحصائيات
+          </button>
+        </div>
+
+        {view === 'groups' && <h2 className="text-lg font-semibold mb-3 text-gray-700 dark:text-gray-200">مجموعات الأذكار</h2>}
+
+        {view === 'statistics' && (
+          <div className="text-center py-8">
+            <div className="mb-3">
+              <svg className="h-12 w-12 mx-auto text-teal-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+              </svg>
+            </div>
+            <p className="text-sm text-gray-600 dark:text-gray-300">عرض تفصيلي للإحصائيات</p>
+          </div>
+        )}
+
         <div className="flex-grow overflow-y-auto">
-          {loading ? (
+          {view === 'groups' && loading ? (
             <p className="text-center text-gray-500 dark:text-gray-400 py-4">جار التحميل...</p>
-          ) : userData.groups.length === 0 ? (
+          ) : view === 'groups' && userData.groups.length === 0 ? (
             <div className="text-center py-8">
               <div className="mb-4">
                 <svg className="h-16 w-16 mx-auto text-gray-400 dark:text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -64,7 +100,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
               <p className="text-gray-500 dark:text-gray-400 mb-2">لا توجد مجموعات</p>
               <p className="text-sm text-gray-400 dark:text-gray-500">قم بإضافة مجموعة جديدة للبدء</p>
             </div>
-          ) : (
+          ) : view === 'groups' && userData.groups.length > 0 ? (
             <div className="space-y-4">
               {userData.groups.map(group => {
                 const totalSupplications = group.supplications.length;
@@ -141,12 +177,15 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
                 );
               })}
             </div>
-          )}
+          ) : null}
         </div>
-        <button onClick={() => setIsAddGroupModalOpen(true)} className="mt-4 w-full flex items-center justify-center gap-2 bg-teal-600 text-white p-3 rounded-md hover:bg-teal-700 transition-colors">
-          <PlusIcon />
-          إضافة مجموعة
-        </button>
+
+        {view === 'groups' && (
+          <button onClick={() => setIsAddGroupModalOpen(true)} className="mt-4 w-full flex items-center justify-center gap-2 bg-teal-600 text-white p-3 rounded-md hover:bg-teal-700 transition-colors">
+            <PlusIcon />
+            إضافة مجموعة
+          </button>
+        )}
       </aside>
 
       {/* Main content area */}
@@ -169,7 +208,9 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
 
         {/* Content */}
         <div className="flex-1 overflow-y-auto p-4 md:p-6">
-          {loading ? (
+          {view === 'statistics' ? (
+            <Statistics />
+          ) : loading ? (
             <div className="flex items-center justify-center h-full">
               <p className="text-gray-600 dark:text-gray-300">جار التحميل...</p>
             </div>

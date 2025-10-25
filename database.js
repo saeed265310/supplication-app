@@ -47,9 +47,31 @@ const createTables = () => {
     );
   `;
 
+  const countHistoryTable = `
+    CREATE TABLE IF NOT EXISTS count_history (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER NOT NULL,
+        group_id INTEGER NOT NULL,
+        supplication_id INTEGER NOT NULL,
+        count INTEGER NOT NULL DEFAULT 1,
+        timestamp INTEGER NOT NULL,
+        FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE,
+        FOREIGN KEY (group_id) REFERENCES groups (id) ON DELETE CASCADE,
+        FOREIGN KEY (supplication_id) REFERENCES supplications (id) ON DELETE CASCADE
+    );
+  `;
+
+  // Create index for faster queries on count_history
+  const countHistoryIndex = `
+    CREATE INDEX IF NOT EXISTS idx_count_history_user_timestamp
+    ON count_history(user_id, timestamp);
+  `;
+
   db.exec(usersTable);
   db.exec(groupsTable);
   db.exec(supplicationsTable);
+  db.exec(countHistoryTable);
+  db.exec(countHistoryIndex);
 
   // Migration: Add title column to existing tables if it doesn't exist
   try {
