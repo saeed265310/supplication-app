@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background with app theme color -->
+  <rect width="512" height="512" fill="#0d9488" rx="64"/>
+
+  <!-- Center circle for visual interest -->
+  <circle cx="256" cy="256" r="180" fill="rgba(255,255,255,0.1)"/>
+
+  <!-- Arabic text "ذكر" (Dhikr) in white -->
+  <text
+    x="256"
+    y="280"
+    font-family="Arial, sans-serif"
+    font-size="120"
+    font-weight="bold"
+    fill="#ffffff"
+    text-anchor="middle"
+    dominant-baseline="middle">ذكر</text>
+
+  <!-- Decorative elements - prayer beads style -->
+  <circle cx="256" cy="140" r="12" fill="rgba(255,255,255,0.6)"/>
+  <circle cx="290" cy="150" r="10" fill="rgba(255,255,255,0.5)"/>
+  <circle cx="320" cy="170" r="10" fill="rgba(255,255,255,0.5)"/>
+
+  <circle cx="256" cy="372" r="12" fill="rgba(255,255,255,0.6)"/>
+  <circle cx="222" cy="362" r="10" fill="rgba(255,255,255,0.5)"/>
+  <circle cx="192" cy="342" r="10" fill="rgba(255,255,255,0.5)"/>
+</svg>
