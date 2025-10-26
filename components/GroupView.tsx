@@ -8,6 +8,7 @@ import { PlusIcon, TrashIcon, ResetIcon } from './icons';
 
 interface GroupViewProps {
   group: SupplicationGroup;
+  allGroups: SupplicationGroup[];
   deleteGroup: (groupId: string) => void;
   resetGroupSupplications: (groupId: string) => void;
   reorderSupplications: (groupId: string, supplicationIds: string[]) => void;
@@ -21,7 +22,7 @@ interface GroupViewProps {
   };
 }
 
-const GroupView: React.FC<GroupViewProps> = ({ group, dataActions, deleteGroup, resetGroupSupplications, reorderSupplications, onDeleteGroup }) => {
+const GroupView: React.FC<GroupViewProps> = ({ group, allGroups, dataActions, deleteGroup, resetGroupSupplications, reorderSupplications, onDeleteGroup }) => {
   const [selectedSupplicationId, setSelectedSupplicationId] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingSupplication, setEditingSupplication] = useState<Supplication | null>(null);
@@ -30,6 +31,9 @@ const GroupView: React.FC<GroupViewProps> = ({ group, dataActions, deleteGroup, 
   const [supplicationTitle, setSupplicationTitle] = useState('');
   const [supplicationText, setSupplicationText] = useState('');
   const [supplicationTarget, setSupplicationTarget] = useState(100);
+  const [isExportModalOpen, setIsExportModalOpen] = useState(false);
+  const [exportingSupplication, setExportingSupplication] = useState<Supplication | null>(null);
+  const [selectedExportGroups, setSelectedExportGroups] = useState<string[]>([]);
 
   const openAddModal = () => {
     setEditingSupplication(null);
@@ -117,6 +121,43 @@ const GroupView: React.FC<GroupViewProps> = ({ group, dataActions, deleteGroup, 
       }
       setIsModalOpen(false);
     }
+  };
+
+  const handleOpenExportModal = () => {
+    if (editingSupplication) {
+      setExportingSupplication(editingSupplication);
+      setSelectedExportGroups([]);
+      setIsExportModalOpen(true);
+    }
+  };
+
+  const handleExportSupplication = () => {
+    if (exportingSupplication && selectedExportGroups.length > 0) {
+      // Copy the supplication to all selected groups
+      selectedExportGroups.forEach(targetGroupId => {
+        dataActions.addSupplication(
+          targetGroupId,
+          exportingSupplication.title || '',
+          exportingSupplication.text,
+          exportingSupplication.target
+        );
+      });
+
+      setIsExportModalOpen(false);
+      setExportingSupplication(null);
+      setSelectedExportGroups([]);
+      alert('تم نسخ الذكر بنجاح!');
+    }
+  };
+
+  const toggleGroupSelection = (groupId: string) => {
+    setSelectedExportGroups(prev => {
+      if (prev.includes(groupId)) {
+        return prev.filter(id => id !== groupId);
+      } else {
+        return [...prev, groupId];
+      }
+    });
   };
 
   const handleDeleteGroup = () => {
@@ -322,13 +363,20 @@ const GroupView: React.FC<GroupViewProps> = ({ group, dataActions, deleteGroup, 
               className="w-full p-2 border border-gray-300 rounded-md mt-1 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
             />
           </div>
-          <div className="flex justify-end gap-2">
+          <div className="flex justify-between items-center gap-2">
             <button onClick={() => setIsModalOpen(false)} className="px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500">
               إلغاء
             </button>
-            <button onClick={handleSave} className="px-4 py-2 bg-teal-600 text-white rounded-md hover:bg-teal-700">
-              حفظ
-            </button>
+            <div className="flex gap-2">
+              {editingSupplication && (
+                <button onClick={handleOpenExportModal} className="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700">
+                  نسخ لمجموعة
+                </button>
+              )}
+              <button onClick={handleSave} className="px-4 py-2 bg-teal-600 text-white rounded-md hover:bg-teal-700">
+                حفظ
+              </button>
+            </div>
           </div>
         </div>
       </Modal>
@@ -349,6 +397,62 @@ const GroupView: React.FC<GroupViewProps> = ({ group, dataActions, deleteGroup, 
               onClick={handleDeleteSupplication}
               className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700">
               حذف
+            </button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Export modal */}
+      <Modal isOpen={isExportModalOpen} onClose={() => setIsExportModalOpen(false)} title="نسخ الذكر لمجموعات أخرى">
+        <div className="space-y-4">
+          {exportingSupplication && (
+            <div className="mb-4 p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+              <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">الذكر المراد نسخه:</p>
+              <p className="font-bold text-gray-800 dark:text-gray-200">{exportingSupplication.title || exportingSupplication.text.substring(0, 50) + '...'}</p>
+            </div>
+          )}
+
+          <div>
+            <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">اختر المجموعات:</p>
+            {allGroups.filter(g => g.id !== group.id).length === 0 ? (
+              <p className="text-center text-gray-500 dark:text-gray-400 py-4">لا توجد مجموعات أخرى متاحة</p>
+            ) : (
+              <div className="space-y-2 max-h-64 overflow-y-auto">
+                {allGroups
+                  .filter(g => g.id !== group.id)
+                  .map(targetGroup => (
+                    <label
+                      key={targetGroup.id}
+                      className="flex items-center gap-3 p-3 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={selectedExportGroups.includes(targetGroup.id)}
+                        onChange={() => toggleGroupSelection(targetGroup.id)}
+                        className="w-5 h-5 text-teal-600 rounded focus:ring-teal-500"
+                      />
+                      <div className="flex-1">
+                        <p className="font-medium text-gray-800 dark:text-gray-200">{targetGroup.name}</p>
+                        <p className="text-xs text-gray-500 dark:text-gray-400">
+                          {targetGroup.supplications.length} {targetGroup.supplications.length === 1 ? 'ذكر' : 'أذكار'}
+                        </p>
+                      </div>
+                    </label>
+                  ))}
+              </div>
+            )}
+          </div>
+
+          <div className="flex justify-end gap-2 pt-4 border-t border-gray-200 dark:border-gray-700">
+            <button
+              onClick={() => setIsExportModalOpen(false)}
+              className="px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500">
+              إلغاء
+            </button>
+            <button
+              onClick={handleExportSupplication}
+              disabled={selectedExportGroups.length === 0}
+              className="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed">
+              نسخ ({selectedExportGroups.length})
             </button>
           </div>
         </div>

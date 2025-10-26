@@ -24,7 +24,8 @@ const SupplicationView: React.FC<SupplicationViewProps> = ({
   currentPosition,
 }) => {
   const [showTransition, setShowTransition] = useState(false);
-  const [fontSize, setFontSize] = useState<'3xs' | '2xs' | 'xs' | 'sm' | 'md' | 'lg' | 'xl' | '2xl'>('3xs');
+  const [fontSize, setFontSize] = useState<'3xs' | '2xs' | 'xs' | 'sm' | 'md' | 'lg' | 'xl' | '2xl'>('2xs');
+  const [fontWeight, setFontWeight] = useState<'normal' | 'medium' | 'semibold' | 'bold'>('bold');
   const progress = supplication.target > 0 ? (supplication.currentCount / supplication.target) * 100 : 0;
   const isCompleted = supplication.currentCount >= supplication.target;
   const remaining = Math.max(0, supplication.target - supplication.currentCount);
@@ -40,12 +41,26 @@ const SupplicationView: React.FC<SupplicationViewProps> = ({
     '2xl': 'text-5xl md:text-6xl',
   };
 
+  const fontWeightClasses = {
+    'normal': 'font-normal',
+    'medium': 'font-medium',
+    'semibold': 'font-semibold',
+    'bold': 'font-bold',
+  };
+
   const fontSizeOrder: ('3xs' | '2xs' | 'xs' | 'sm' | 'md' | 'lg' | 'xl' | '2xl')[] = ['3xs', '2xs', 'xs', 'sm', 'md', 'lg', 'xl', '2xl'];
+  const fontWeightOrder: ('normal' | 'medium' | 'semibold' | 'bold')[] = ['normal', 'medium', 'semibold', 'bold'];
 
   const cycleFontSize = () => {
     const currentIndex = fontSizeOrder.indexOf(fontSize);
     const nextIndex = (currentIndex + 1) % fontSizeOrder.length;
     setFontSize(fontSizeOrder[nextIndex]);
+  };
+
+  const cycleFontWeight = () => {
+    const currentIndex = fontWeightOrder.indexOf(fontWeight);
+    const nextIndex = (currentIndex + 1) % fontWeightOrder.length;
+    setFontWeight(fontWeightOrder[nextIndex]);
   };
 
   const handleIncrement = () => {
@@ -67,41 +82,35 @@ const SupplicationView: React.FC<SupplicationViewProps> = ({
   };
 
   return (
-    <div className="flex flex-col h-full">
-      {/* Header with back button */}
-      <div className="bg-white dark:bg-gray-800 shadow-md p-4 flex items-center justify-between">
-        <div className="flex items-center gap-3 flex-1 min-w-0">
-          <button
-            onClick={onBack}
-            className="text-teal-600 dark:text-teal-400 hover:text-teal-700 dark:hover:text-teal-300 flex-shrink-0"
-            aria-label="العودة للمجموعة">
-            <ArrowRightIcon />
-          </button>
-          <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-2">
-              <span className="text-xs bg-teal-100 dark:bg-teal-900 text-teal-700 dark:text-teal-200 px-2 py-0.5 rounded-full">
-                {currentPosition} من {totalSupplications}
-              </span>
-            </div>
-            {supplication.title && (
-              <h3 className="text-lg font-bold text-gray-800 dark:text-gray-100 truncate">{supplication.title}</h3>
-            )}
-          </div>
-        </div>
-        <div className="flex gap-2 flex-shrink-0">
-          {/* Font size cycle button */}
+    <div className="flex flex-col h-full bg-gray-50 dark:bg-gray-900 relative">
+      {/* Floating controls - Top */}
+      <div className="absolute top-4 left-4 right-4 z-20 flex items-center justify-between">
+        <button
+          onClick={onBack}
+          className="p-3 bg-white dark:bg-gray-800 rounded-full shadow-lg text-teal-600 dark:text-teal-400 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+          aria-label="العودة للمجموعة">
+          <ArrowRightIcon />
+        </button>
+        <div className="flex gap-2">
           <button
             onClick={cycleFontSize}
-            className="p-2 text-gray-500 hover:text-teal-600 dark:text-gray-400 dark:hover:text-teal-400"
+            className="p-3 bg-white dark:bg-gray-800 rounded-full shadow-lg text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
             aria-label="تغيير حجم الخط">
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8h16M4 16h8" />
             </svg>
           </button>
-          {/* Reset button */}
+          <button
+            onClick={cycleFontWeight}
+            className="p-3 bg-white dark:bg-gray-800 rounded-full shadow-lg text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+            aria-label="تغيير سمك الخط">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 12h12M6 6h12M6 18h12" />
+            </svg>
+          </button>
           <button
             onClick={onReset}
-            className="p-2 text-gray-500 hover:text-yellow-600 dark:text-gray-400 dark:hover:text-yellow-400"
+            className="p-3 bg-white dark:bg-gray-800 rounded-full shadow-lg text-yellow-600 dark:text-yellow-400 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
             aria-label="إعادة تعيين">
             <ResetIcon />
           </button>
@@ -109,11 +118,11 @@ const SupplicationView: React.FC<SupplicationViewProps> = ({
       </div>
 
       {/* Main content - Supplication text */}
-      <div className="flex-1 flex flex-col p-6 bg-gray-50 dark:bg-gray-900 relative overflow-hidden">
+      <div className="flex-1 flex flex-col p-6 pt-24 relative overflow-hidden">
         {/* Scrollable text area */}
         <div className="flex-1 overflow-y-auto px-4">
           <div className="w-full text-center">
-            <p className={`${fontSizeClasses[fontSize]} font-bold text-gray-800 dark:text-gray-100 leading-relaxed mb-8 whitespace-pre-line`}>
+            <p className={`${fontSizeClasses[fontSize]} ${fontWeightClasses[fontWeight]} text-gray-800 dark:text-gray-100 leading-relaxed mb-8 whitespace-pre-line`}>
               {supplication.text}
             </p>
 
