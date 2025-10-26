@@ -30,9 +30,18 @@ const SupplicationView: React.FC<SupplicationViewProps> = ({
 }) => {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showTransition, setShowTransition] = useState(false);
+  const [fontSize, setFontSize] = useState<'sm' | 'md' | 'lg' | 'xl' | '2xl'>('lg');
   const progress = supplication.target > 0 ? (supplication.currentCount / supplication.target) * 100 : 0;
   const isCompleted = supplication.currentCount >= supplication.target;
   const remaining = Math.max(0, supplication.target - supplication.currentCount);
+
+  const fontSizeClasses = {
+    'sm': 'text-xl md:text-2xl',
+    'md': 'text-2xl md:text-3xl',
+    'lg': 'text-3xl md:text-4xl',
+    'xl': 'text-4xl md:text-5xl',
+    '2xl': 'text-5xl md:text-6xl',
+  };
 
   const handleIncrement = () => {
     // Prevent counting beyond target
@@ -97,21 +106,73 @@ const SupplicationView: React.FC<SupplicationViewProps> = ({
       </div>
 
       {/* Main content - Supplication text */}
-      <div className="flex-1 flex items-center justify-center p-6 bg-gray-50 dark:bg-gray-900 relative">
-        <div className="max-w-2xl w-full text-center">
-          <p className="text-3xl md:text-4xl lg:text-5xl font-bold text-gray-800 dark:text-gray-100 leading-relaxed mb-8">
-            {supplication.text}
-          </p>
+      <div className="flex-1 flex flex-col p-6 bg-gray-50 dark:bg-gray-900 relative overflow-hidden">
+        {/* Font size controls */}
+        <div className="flex justify-center gap-2 mb-4">
+          <button
+            onClick={() => setFontSize('sm')}
+            className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
+              fontSize === 'sm'
+                ? 'bg-teal-600 text-white'
+                : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+            }`}>
+            أ
+          </button>
+          <button
+            onClick={() => setFontSize('md')}
+            className={`px-3 py-1 rounded-md text-base font-medium transition-colors ${
+              fontSize === 'md'
+                ? 'bg-teal-600 text-white'
+                : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+            }`}>
+            أ
+          </button>
+          <button
+            onClick={() => setFontSize('lg')}
+            className={`px-3 py-1 rounded-md text-lg font-medium transition-colors ${
+              fontSize === 'lg'
+                ? 'bg-teal-600 text-white'
+                : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+            }`}>
+            أ
+          </button>
+          <button
+            onClick={() => setFontSize('xl')}
+            className={`px-3 py-1 rounded-md text-xl font-medium transition-colors ${
+              fontSize === 'xl'
+                ? 'bg-teal-600 text-white'
+                : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+            }`}>
+            أ
+          </button>
+          <button
+            onClick={() => setFontSize('2xl')}
+            className={`px-3 py-1 rounded-md text-2xl font-medium transition-colors ${
+              fontSize === '2xl'
+                ? 'bg-teal-600 text-white'
+                : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+            }`}>
+            أ
+          </button>
+        </div>
 
-          {/* Status badge */}
-          {isCompleted && !showTransition && (
-            <div className="inline-flex items-center gap-2 bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-100 px-4 py-2 rounded-full mb-4">
-              <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-              </svg>
-              <span className="font-semibold">اكتمل الهدف!</span>
-            </div>
-          )}
+        {/* Scrollable text area */}
+        <div className="flex-1 overflow-y-auto px-4">
+          <div className="w-full text-center">
+            <p className={`${fontSizeClasses[fontSize]} font-bold text-gray-800 dark:text-gray-100 leading-relaxed mb-8 whitespace-pre-line`}>
+              {supplication.text}
+            </p>
+
+            {/* Status badge */}
+            {isCompleted && !showTransition && (
+              <div className="inline-flex items-center gap-2 bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-100 px-4 py-2 rounded-full mb-4">
+                <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                </svg>
+                <span className="font-semibold">اكتمل الهدف!</span>
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Transition overlay */}
