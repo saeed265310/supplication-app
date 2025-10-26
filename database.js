@@ -61,6 +61,28 @@ const createTables = () => {
     );
   `;
 
+  const userSettingsTable = `
+    CREATE TABLE IF NOT EXISTS user_settings (
+        user_id INTEGER PRIMARY KEY,
+        notifications_enabled INTEGER NOT NULL DEFAULT 0,
+        theme TEXT NOT NULL DEFAULT 'auto',
+        default_font_size TEXT NOT NULL DEFAULT '2xs',
+        default_font_weight TEXT NOT NULL DEFAULT 'bold',
+        FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
+    );
+  `;
+
+  const reminderTimesTable = `
+    CREATE TABLE IF NOT EXISTS reminder_times (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER NOT NULL,
+        time TEXT NOT NULL,
+        message TEXT,
+        enabled INTEGER NOT NULL DEFAULT 1,
+        FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
+    );
+  `;
+
   // Create index for faster queries on count_history
   const countHistoryIndex = `
     CREATE INDEX IF NOT EXISTS idx_count_history_user_timestamp
@@ -71,6 +93,8 @@ const createTables = () => {
   db.exec(groupsTable);
   db.exec(supplicationsTable);
   db.exec(countHistoryTable);
+  db.exec(userSettingsTable);
+  db.exec(reminderTimesTable);
   db.exec(countHistoryIndex);
 
   // Migration: Add title column to existing tables if it doesn't exist
