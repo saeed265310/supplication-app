@@ -183,10 +183,10 @@ const Library: React.FC<LibraryProps> = ({ userGroups, onImportSupplication }) =
       </div>
 
       {/* Import Modal */}
-      {importingSupplication && (
-        <Modal onClose={handleImportCancel}>
-          <div className="p-6">
-            <h3 className="text-2xl font-bold mb-4 text-gray-800">استيراد الذكر</h3>
+      <Modal isOpen={!!importingSupplication} onClose={handleImportCancel} title="استيراد الذكر">
+        <div>
+          {importingSupplication && (
+            <div>
 
             {importingSupplication.title && (
               <div className="mb-4">
@@ -243,9 +243,10 @@ const Library: React.FC<LibraryProps> = ({ userGroups, onImportSupplication }) =
                 {importing ? 'جاري الاستيراد...' : 'استيراد'}
               </button>
             </div>
-          </div>
-        </Modal>
-      )}
+            </div>
+          )}
+        </div>
+      </Modal>
     </div>
   );
 };
