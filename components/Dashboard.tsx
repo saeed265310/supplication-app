@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import type { User } from '../types';
 import { useUserData } from '../hooks/useUserData';
 import GroupView from './GroupView';
@@ -21,6 +21,40 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
   const [isImportingLibrary, setIsImportingLibrary] = useState(false);
   const [newGroupName, setNewGroupName] = useState('');
 
+  // Handle browser back/forward navigation
+  useEffect(() => {
+    const handlePopState = (event: PopStateEvent) => {
+      if (event.state) {
+        setView(event.state.view || 'groups');
+        setSelectedGroupId(event.state.selectedGroupId || null);
+      } else {
+        // No state means we're at the initial page
+        setView('groups');
+        setSelectedGroupId(null);
+      }
+    };
+
+    // Set initial state
+    if (!window.history.state) {
+      window.history.replaceState({ view: 'groups', selectedGroupId: null }, '');
+    }
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
+  const handleViewChange = (newView: 'groups' | 'statistics' | 'settings') => {
+    setView(newView);
+    setSelectedGroupId(null);
+
+    // Push state to history for back button support
+    window.history.pushState(
+      { view: newView, selectedGroupId: null },
+      '',
+      `#${newView}`
+    );
+  };
+
   const handleAddGroup = () => {
     if (newGroupName.trim()) {
       addGroup(newGroupName.trim());
@@ -31,10 +65,20 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
 
   const handleSelectGroup = (groupId: string) => {
     setSelectedGroupId(groupId);
+
+    // Push state to history for back button support
+    window.history.pushState(
+      { view: 'groups', selectedGroupId: groupId },
+      '',
+      `#group-${groupId}`
+    );
   };
 
   const handleBackToGroups = () => {
     setSelectedGroupId(null);
+
+    // Go back in history instead of pushing new state
+    window.history.back();
   };
 
   const handleImportLibrary = async () => {
@@ -96,7 +140,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
         {/* Navigation Tabs */}
         <div className="grid grid-cols-3 gap-2 mb-4">
           <button
-            onClick={() => setView('groups')}
+            onClick={() => handleViewChange('groups')}
             className={`py-2 px-2 rounded-md text-xs font-medium transition-colors ${
               view === 'groups'
                 ? 'bg-teal-600 text-white'
@@ -105,10 +149,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
             المجموعات
           </button>
           <button
-            onClick={() => {
-              setView('statistics');
-              setSelectedGroupId(null);
-            }}
+            onClick={() => handleViewChange('statistics')}
             className={`py-2 px-2 rounded-md text-xs font-medium transition-colors ${
               view === 'statistics'
                 ? 'bg-teal-600 text-white'
@@ -117,10 +158,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
             الإحصائيات
           </button>
           <button
-            onClick={() => {
-              setView('settings');
-              setSelectedGroupId(null);
-            }}
+            onClick={() => handleViewChange('settings')}
             className={`py-2 px-2 rounded-md text-xs font-medium transition-colors ${
               view === 'settings'
                 ? 'bg-teal-600 text-white'
