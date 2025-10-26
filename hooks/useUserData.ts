@@ -10,6 +10,7 @@ import {
   apiIncrementCount,
   apiResetCount,
   apiResetGroupSupplications,
+  apiReorderSupplications,
 } from '../utils/api';
 
 export const useUserData = (isAuthenticated: boolean) => {
@@ -162,5 +163,24 @@ export const useUserData = (isAuthenticated: boolean) => {
     }
   };
 
-  return { userData, loading, addGroup, deleteGroup, addSupplication, updateSupplication, deleteSupplication, incrementCount, resetCount, resetGroupSupplications };
+  const reorderSupplications = async (groupId: string, supplicationIds: string[]) => {
+    const previousState = userData;
+    try {
+        const updatedSupplications = await apiReorderSupplications(groupId, supplicationIds);
+        setUserData(prevData => {
+            const newGroups = prevData.groups.map(g => {
+                if (g.id === groupId) {
+                    return { ...g, supplications: updatedSupplications };
+                }
+                return g;
+            });
+            return { ...prevData, groups: newGroups };
+        });
+    } catch (error) {
+        console.error("Failed to reorder supplications:", error);
+        setUserData(previousState);
+    }
+  };
+
+  return { userData, loading, addGroup, deleteGroup, addSupplication, updateSupplication, deleteSupplication, incrementCount, resetCount, resetGroupSupplications, reorderSupplications };
 };

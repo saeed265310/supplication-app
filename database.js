@@ -86,6 +86,32 @@ const createTables = () => {
   } catch (error) {
     console.error('Error checking/adding title column:', error);
   }
+
+  // Migration: Add position column to existing tables if it doesn't exist
+  try {
+    const tableInfo = db.prepare("PRAGMA table_info(supplications)").all();
+    const hasPosition = tableInfo.some(col => col.name === 'position');
+
+    if (!hasPosition) {
+      console.log('Adding position column to supplications table...');
+      db.exec('ALTER TABLE supplications ADD COLUMN position INTEGER DEFAULT 0');
+      console.log('Position column added successfully');
+
+      // Update existing supplications to have sequential positions within their groups
+      console.log('Setting positions for existing supplications...');
+      const groups = db.prepare('SELECT DISTINCT group_id FROM supplications').all();
+      for (const { group_id } of groups) {
+        const supplications = db.prepare('SELECT id FROM supplications WHERE group_id = ? ORDER BY id').all(group_id);
+        const updateStmt = db.prepare('UPDATE supplications SET position = ? WHERE id = ?');
+        supplications.forEach((sup, index) => {
+          updateStmt.run(index, sup.id);
+        });
+      }
+      console.log('Positions set successfully');
+    }
+  } catch (error) {
+    console.error('Error checking/adding position column:', error);
+  }
 };
 
 createTables();

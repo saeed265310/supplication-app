@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import type { Supplication } from '../types';
-import Modal from './Modal';
-import { ArrowRightIcon, EditIcon, TrashIcon, ResetIcon } from './icons';
+import { ArrowRightIcon, ResetIcon } from './icons';
 
 interface SupplicationViewProps {
   supplication: Supplication;
@@ -9,8 +8,6 @@ interface SupplicationViewProps {
   onBack: () => void;
   onIncrement: () => void;
   onReset: () => void;
-  onDelete: () => void;
-  onEdit: () => void;
   isLastInGroup: boolean;
   totalSupplications: number;
   currentPosition: number;
@@ -22,13 +19,10 @@ const SupplicationView: React.FC<SupplicationViewProps> = ({
   onBack,
   onIncrement,
   onReset,
-  onDelete,
-  onEdit,
   isLastInGroup,
   totalSupplications,
   currentPosition,
 }) => {
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showTransition, setShowTransition] = useState(false);
   const [fontSize, setFontSize] = useState<'sm' | 'md' | 'lg' | 'xl' | '2xl'>('lg');
   const progress = supplication.target > 0 ? (supplication.currentCount / supplication.target) * 100 : 0;
@@ -45,18 +39,10 @@ const SupplicationView: React.FC<SupplicationViewProps> = ({
 
   const fontSizeOrder: ('sm' | 'md' | 'lg' | 'xl' | '2xl')[] = ['sm', 'md', 'lg', 'xl', '2xl'];
 
-  const increaseFontSize = () => {
+  const cycleFontSize = () => {
     const currentIndex = fontSizeOrder.indexOf(fontSize);
-    if (currentIndex < fontSizeOrder.length - 1) {
-      setFontSize(fontSizeOrder[currentIndex + 1]);
-    }
-  };
-
-  const decreaseFontSize = () => {
-    const currentIndex = fontSizeOrder.indexOf(fontSize);
-    if (currentIndex > 0) {
-      setFontSize(fontSizeOrder[currentIndex - 1]);
-    }
+    const nextIndex = (currentIndex + 1) % fontSizeOrder.length;
+    setFontSize(fontSizeOrder[nextIndex]);
   };
 
   const handleIncrement = () => {
@@ -77,52 +63,29 @@ const SupplicationView: React.FC<SupplicationViewProps> = ({
     }
   };
 
-  const handleDelete = () => {
-    onDelete();
-    onBack();
-  };
-
   return (
     <div className="flex flex-col h-full">
       {/* Header with back button */}
       <div className="bg-white dark:bg-gray-800 shadow-md p-4 flex items-center justify-between">
-        <div className="flex items-center gap-3 flex-1 min-w-0">
+        <div className="flex items-center gap-3">
           <button
             onClick={onBack}
-            className="text-teal-600 dark:text-teal-400 hover:text-teal-700 dark:hover:text-teal-300 flex-shrink-0"
+            className="text-teal-600 dark:text-teal-400 hover:text-teal-700 dark:hover:text-teal-300"
             aria-label="العودة للمجموعة">
             <ArrowRightIcon />
           </button>
-          <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-2">
-              <span className="text-xs bg-teal-100 dark:bg-teal-900 text-teal-700 dark:text-teal-200 px-2 py-0.5 rounded-full">
-                {currentPosition} من {totalSupplications}
-              </span>
-            </div>
-            {supplication.title && (
-              <h3 className="text-lg font-bold text-gray-800 dark:text-gray-100 truncate">{supplication.title}</h3>
-            )}
-          </div>
+          <span className="text-xs bg-teal-100 dark:bg-teal-900 text-teal-700 dark:text-teal-200 px-2 py-0.5 rounded-full">
+            {currentPosition} من {totalSupplications}
+          </span>
         </div>
-        <div className="flex gap-1 flex-shrink-0">
-          {/* Font size decrease */}
+        <div className="flex gap-2">
+          {/* Font size cycle button */}
           <button
-            onClick={decreaseFontSize}
-            disabled={fontSize === 'sm'}
-            className="p-2 text-gray-500 hover:text-teal-600 dark:text-gray-400 dark:hover:text-teal-400 disabled:opacity-30 disabled:cursor-not-allowed"
-            aria-label="تصغير الخط">
+            onClick={cycleFontSize}
+            className="p-2 text-gray-500 hover:text-teal-600 dark:text-gray-400 dark:hover:text-teal-400"
+            aria-label="تغيير حجم الخط">
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
-            </svg>
-          </button>
-          {/* Font size increase */}
-          <button
-            onClick={increaseFontSize}
-            disabled={fontSize === '2xl'}
-            className="p-2 text-gray-500 hover:text-teal-600 dark:text-gray-400 dark:hover:text-teal-400 disabled:opacity-30 disabled:cursor-not-allowed"
-            aria-label="تكبير الخط">
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8h16M4 16h8" />
             </svg>
           </button>
           {/* Reset button */}
@@ -131,20 +94,6 @@ const SupplicationView: React.FC<SupplicationViewProps> = ({
             className="p-2 text-gray-500 hover:text-yellow-600 dark:text-gray-400 dark:hover:text-yellow-400"
             aria-label="إعادة تعيين">
             <ResetIcon />
-          </button>
-          {/* Edit button */}
-          <button
-            onClick={onEdit}
-            className="p-2 text-gray-500 hover:text-blue-500 dark:text-gray-400 dark:hover:text-blue-400"
-            aria-label="تعديل">
-            <EditIcon />
-          </button>
-          {/* Delete button */}
-          <button
-            onClick={() => setShowDeleteConfirm(true)}
-            className="p-2 text-gray-500 hover:text-red-500 dark:text-gray-400 dark:hover:text-red-400"
-            aria-label="حذف">
-            <TrashIcon />
           </button>
         </div>
       </div>
@@ -225,30 +174,6 @@ const SupplicationView: React.FC<SupplicationViewProps> = ({
           {supplication.currentCount}
         </button>
       </div>
-
-      {/* Delete confirmation modal */}
-      <Modal
-        isOpen={showDeleteConfirm}
-        onClose={() => setShowDeleteConfirm(false)}
-        title="تأكيد الحذف">
-        <div className="space-y-4">
-          <p className="text-gray-700 dark:text-gray-300">
-            هل أنت متأكد من حذف هذا الذكر؟ لا يمكن التراجع عن هذا الإجراء.
-          </p>
-          <div className="flex justify-end gap-2">
-            <button
-              onClick={() => setShowDeleteConfirm(false)}
-              className="px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500">
-              إلغاء
-            </button>
-            <button
-              onClick={handleDelete}
-              className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700">
-              حذف
-            </button>
-          </div>
-        </div>
-      </Modal>
     </div>
   );
 };

@@ -13,7 +13,7 @@ interface DashboardProps {
 }
 
 const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
-  const { userData, loading, addGroup, deleteGroup, resetGroupSupplications, ...dataActions } = useUserData(!!user);
+  const { userData, loading, addGroup, deleteGroup, resetGroupSupplications, reorderSupplications, ...dataActions } = useUserData(!!user);
   const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
   const [view, setView] = useState<'groups' | 'statistics' | 'library'>('groups');
   const [isAddGroupModalOpen, setIsAddGroupModalOpen] = useState(false);
@@ -246,6 +246,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
               dataActions={dataActions}
               deleteGroup={deleteGroup}
               resetGroupSupplications={resetGroupSupplications}
+              reorderSupplications={reorderSupplications}
               onDeleteGroup={handleBackToGroups}
             />
           ) : (

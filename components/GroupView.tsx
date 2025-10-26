@@ -10,6 +10,7 @@ interface GroupViewProps {
   group: SupplicationGroup;
   deleteGroup: (groupId: string) => void;
   resetGroupSupplications: (groupId: string) => void;
+  reorderSupplications: (groupId: string, supplicationIds: string[]) => void;
   onDeleteGroup?: () => void;
   dataActions: {
     addSupplication: (groupId: string, title: string, text: string, target: number) => void;
@@ -20,10 +21,11 @@ interface GroupViewProps {
   };
 }
 
-const GroupView: React.FC<GroupViewProps> = ({ group, dataActions, deleteGroup, resetGroupSupplications, onDeleteGroup }) => {
+const GroupView: React.FC<GroupViewProps> = ({ group, dataActions, deleteGroup, resetGroupSupplications, reorderSupplications, onDeleteGroup }) => {
   const [selectedSupplicationId, setSelectedSupplicationId] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingSupplication, setEditingSupplication] = useState<Supplication | null>(null);
+  const [deletingSupplication, setDeletingSupplication] = useState<Supplication | null>(null);
   const [supplicationTitle, setSupplicationTitle] = useState('');
   const [supplicationText, setSupplicationText] = useState('');
   const [supplicationTarget, setSupplicationTarget] = useState(100);
@@ -36,12 +38,27 @@ const GroupView: React.FC<GroupViewProps> = ({ group, dataActions, deleteGroup, 
     setIsModalOpen(true);
   };
 
-  const openEditModal = (supplication: Supplication) => {
+  const openEditModal = (supplication: Supplication, e?: React.MouseEvent) => {
+    if (e) {
+      e.stopPropagation();
+    }
     setEditingSupplication(supplication);
     setSupplicationTitle(supplication.title || '');
     setSupplicationText(supplication.text);
     setSupplicationTarget(supplication.target);
     setIsModalOpen(true);
+  };
+
+  const openDeleteConfirm = (supplication: Supplication, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setDeletingSupplication(supplication);
+  };
+
+  const handleDeleteSupplication = () => {
+    if (deletingSupplication) {
+      dataActions.deleteSupplication(group.id, deletingSupplication.id);
+      setDeletingSupplication(null);
+    }
   };
 
   const handleSelectSupplication = (supplicationId: string) => {
@@ -116,6 +133,26 @@ const GroupView: React.FC<GroupViewProps> = ({ group, dataActions, deleteGroup, 
     }
   };
 
+  const handleMoveUp = (supplication: Supplication, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const currentIndex = group.supplications.findIndex(s => s.id === supplication.id);
+    if (currentIndex > 0) {
+      const newOrder = [...group.supplications];
+      [newOrder[currentIndex - 1], newOrder[currentIndex]] = [newOrder[currentIndex], newOrder[currentIndex - 1]];
+      reorderSupplications(group.id, newOrder.map(s => s.id));
+    }
+  };
+
+  const handleMoveDown = (supplication: Supplication, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const currentIndex = group.supplications.findIndex(s => s.id === supplication.id);
+    if (currentIndex < group.supplications.length - 1) {
+      const newOrder = [...group.supplications];
+      [newOrder[currentIndex], newOrder[currentIndex + 1]] = [newOrder[currentIndex + 1], newOrder[currentIndex]];
+      reorderSupplications(group.id, newOrder.map(s => s.id));
+    }
+  };
+
   const selectedSupplication = group.supplications.find(s => s.id === selectedSupplicationId);
 
   // Show supplication detail view if one is selected
@@ -128,8 +165,6 @@ const GroupView: React.FC<GroupViewProps> = ({ group, dataActions, deleteGroup, 
           onBack={handleBackToGroup}
           onIncrement={() => handleIncrementWithAutoAdvance(selectedSupplication.id)}
           onReset={() => dataActions.resetCount(group.id, selectedSupplication.id)}
-          onDelete={() => dataActions.deleteSupplication(group.id, selectedSupplication.id)}
-          onEdit={() => openEditModal(selectedSupplication)}
           isLastInGroup={group.supplications[group.supplications.length - 1]?.id === selectedSupplication.id}
           totalSupplications={group.supplications.length}
           currentPosition={group.supplications.findIndex(s => s.id === selectedSupplication.id) + 1}
@@ -213,11 +248,17 @@ const GroupView: React.FC<GroupViewProps> = ({ group, dataActions, deleteGroup, 
         </div>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {group.supplications.map(supplication => (
+        {group.supplications.map((supplication, index) => (
           <SupplicationCard
             key={supplication.id}
             supplication={supplication}
             onClick={() => handleSelectSupplication(supplication.id)}
+            onEdit={(e) => openEditModal(supplication, e)}
+            onDelete={(e) => openDeleteConfirm(supplication, e)}
+            onMoveUp={(e) => handleMoveUp(supplication, e)}
+            onMoveDown={(e) => handleMoveDown(supplication, e)}
+            isFirst={index === 0}
+            isLast={index === group.supplications.length - 1}
           />
         ))}
          {group.supplications.length === 0 && (
@@ -273,6 +314,27 @@ const GroupView: React.FC<GroupViewProps> = ({ group, dataActions, deleteGroup, 
             </button>
             <button onClick={handleSave} className="px-4 py-2 bg-teal-600 text-white rounded-md hover:bg-teal-700">
               حفظ
+            </button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Delete confirmation modal */}
+      <Modal isOpen={!!deletingSupplication} onClose={() => setDeletingSupplication(null)} title="تأكيد الحذف">
+        <div className="space-y-4">
+          <p className="text-gray-700 dark:text-gray-300">
+            هل أنت متأكد من حذف هذا الذكر؟ لا يمكن التراجع عن هذا الإجراء.
+          </p>
+          <div className="flex justify-end gap-2">
+            <button
+              onClick={() => setDeletingSupplication(null)}
+              className="px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500">
+              إلغاء
+            </button>
+            <button
+              onClick={handleDeleteSupplication}
+              className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700">
+              حذف
             </button>
           </div>
         </div>
