@@ -24,12 +24,15 @@ const SupplicationView: React.FC<SupplicationViewProps> = ({
   currentPosition,
 }) => {
   const [showTransition, setShowTransition] = useState(false);
-  const [fontSize, setFontSize] = useState<'sm' | 'md' | 'lg' | 'xl' | '2xl'>('lg');
+  const [fontSize, setFontSize] = useState<'3xs' | '2xs' | 'xs' | 'sm' | 'md' | 'lg' | 'xl' | '2xl'>('3xs');
   const progress = supplication.target > 0 ? (supplication.currentCount / supplication.target) * 100 : 0;
   const isCompleted = supplication.currentCount >= supplication.target;
   const remaining = Math.max(0, supplication.target - supplication.currentCount);
 
   const fontSizeClasses = {
+    '3xs': 'text-sm md:text-base',
+    '2xs': 'text-base md:text-lg',
+    'xs': 'text-lg md:text-xl',
     'sm': 'text-xl md:text-2xl',
     'md': 'text-2xl md:text-3xl',
     'lg': 'text-3xl md:text-4xl',
@@ -37,7 +40,7 @@ const SupplicationView: React.FC<SupplicationViewProps> = ({
     '2xl': 'text-5xl md:text-6xl',
   };
 
-  const fontSizeOrder: ('sm' | 'md' | 'lg' | 'xl' | '2xl')[] = ['sm', 'md', 'lg', 'xl', '2xl'];
+  const fontSizeOrder: ('3xs' | '2xs' | 'xs' | 'sm' | 'md' | 'lg' | 'xl' | '2xl')[] = ['3xs', '2xs', 'xs', 'sm', 'md', 'lg', 'xl', '2xl'];
 
   const cycleFontSize = () => {
     const currentIndex = fontSizeOrder.indexOf(fontSize);
@@ -67,18 +70,25 @@ const SupplicationView: React.FC<SupplicationViewProps> = ({
     <div className="flex flex-col h-full">
       {/* Header with back button */}
       <div className="bg-white dark:bg-gray-800 shadow-md p-4 flex items-center justify-between">
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 flex-1 min-w-0">
           <button
             onClick={onBack}
-            className="text-teal-600 dark:text-teal-400 hover:text-teal-700 dark:hover:text-teal-300"
+            className="text-teal-600 dark:text-teal-400 hover:text-teal-700 dark:hover:text-teal-300 flex-shrink-0"
             aria-label="العودة للمجموعة">
             <ArrowRightIcon />
           </button>
-          <span className="text-xs bg-teal-100 dark:bg-teal-900 text-teal-700 dark:text-teal-200 px-2 py-0.5 rounded-full">
-            {currentPosition} من {totalSupplications}
-          </span>
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2">
+              <span className="text-xs bg-teal-100 dark:bg-teal-900 text-teal-700 dark:text-teal-200 px-2 py-0.5 rounded-full">
+                {currentPosition} من {totalSupplications}
+              </span>
+            </div>
+            {supplication.title && (
+              <h3 className="text-lg font-bold text-gray-800 dark:text-gray-100 truncate">{supplication.title}</h3>
+            )}
+          </div>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-shrink-0">
           {/* Font size cycle button */}
           <button
             onClick={cycleFontSize}

@@ -26,6 +26,7 @@ const GroupView: React.FC<GroupViewProps> = ({ group, dataActions, deleteGroup, 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingSupplication, setEditingSupplication] = useState<Supplication | null>(null);
   const [deletingSupplication, setDeletingSupplication] = useState<Supplication | null>(null);
+  const [isReorderMode, setIsReorderMode] = useState(false);
   const [supplicationTitle, setSupplicationTitle] = useState('');
   const [supplicationText, setSupplicationText] = useState('');
   const [supplicationTarget, setSupplicationTarget] = useState(100);
@@ -232,18 +233,31 @@ const GroupView: React.FC<GroupViewProps> = ({ group, dataActions, deleteGroup, 
       {/* Mobile: Title is in Dashboard header, only show buttons */}
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-6">
         <h2 className="hidden md:block text-3xl font-bold text-gray-800 dark:text-gray-100">{group.name}</h2>
-        <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-            <button onClick={openAddModal} className="flex items-center justify-center gap-2 bg-teal-600 text-white px-4 py-2 rounded-md hover:bg-teal-700 transition-colors">
+        <div className="flex flex-row flex-wrap gap-2 w-full sm:w-auto">
+            <button onClick={openAddModal} className="flex items-center justify-center gap-2 bg-teal-600 text-white px-3 py-2 rounded-md hover:bg-teal-700 transition-colors text-sm">
                 <PlusIcon />
-                <span>إضافة ذكر</span>
+                <span className="hidden sm:inline">إضافة ذكر</span>
+                <span className="sm:hidden">إضافة</span>
             </button>
-            <button onClick={handleResetGroup} className="flex items-center justify-center gap-2 bg-yellow-600 text-white px-4 py-2 rounded-md hover:bg-yellow-700 transition-colors">
+            <button
+              onClick={() => setIsReorderMode(!isReorderMode)}
+              className={`flex items-center justify-center gap-2 text-white px-3 py-2 rounded-md transition-colors text-sm ${
+                isReorderMode ? 'bg-purple-700 hover:bg-purple-800' : 'bg-purple-600 hover:bg-purple-700'
+              }`}>
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" />
+                </svg>
+                <span className="hidden sm:inline">ترتيب</span>
+            </button>
+            <button onClick={handleResetGroup} className="flex items-center justify-center gap-2 bg-yellow-600 text-white px-3 py-2 rounded-md hover:bg-yellow-700 transition-colors text-sm">
                 <ResetIcon />
-                <span>إعادة تعيين الكل</span>
+                <span className="hidden sm:inline">إعادة تعيين</span>
+                <span className="sm:hidden">إعادة</span>
             </button>
-            <button onClick={handleDeleteGroup} className="flex items-center justify-center gap-2 bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700 transition-colors">
+            <button onClick={handleDeleteGroup} className="flex items-center justify-center gap-2 bg-red-600 text-white px-3 py-2 rounded-md hover:bg-red-700 transition-colors text-sm">
                 <TrashIcon />
-                <span>حذف المجموعة</span>
+                <span className="hidden sm:inline">حذف المجموعة</span>
+                <span className="sm:hidden">حذف</span>
             </button>
         </div>
       </div>
@@ -253,10 +267,10 @@ const GroupView: React.FC<GroupViewProps> = ({ group, dataActions, deleteGroup, 
             key={supplication.id}
             supplication={supplication}
             onClick={() => handleSelectSupplication(supplication.id)}
-            onEdit={(e) => openEditModal(supplication, e)}
-            onDelete={(e) => openDeleteConfirm(supplication, e)}
-            onMoveUp={(e) => handleMoveUp(supplication, e)}
-            onMoveDown={(e) => handleMoveDown(supplication, e)}
+            onEdit={!isReorderMode ? (e) => openEditModal(supplication, e) : undefined}
+            onDelete={!isReorderMode ? (e) => openDeleteConfirm(supplication, e) : undefined}
+            onMoveUp={isReorderMode ? (e) => handleMoveUp(supplication, e) : undefined}
+            onMoveDown={isReorderMode ? (e) => handleMoveDown(supplication, e) : undefined}
             isFirst={index === 0}
             isLast={index === group.supplications.length - 1}
           />
