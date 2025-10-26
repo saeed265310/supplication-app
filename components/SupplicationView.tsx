@@ -43,6 +43,22 @@ const SupplicationView: React.FC<SupplicationViewProps> = ({
     '2xl': 'text-5xl md:text-6xl',
   };
 
+  const fontSizeOrder: ('sm' | 'md' | 'lg' | 'xl' | '2xl')[] = ['sm', 'md', 'lg', 'xl', '2xl'];
+
+  const increaseFontSize = () => {
+    const currentIndex = fontSizeOrder.indexOf(fontSize);
+    if (currentIndex < fontSizeOrder.length - 1) {
+      setFontSize(fontSizeOrder[currentIndex + 1]);
+    }
+  };
+
+  const decreaseFontSize = () => {
+    const currentIndex = fontSizeOrder.indexOf(fontSize);
+    if (currentIndex > 0) {
+      setFontSize(fontSizeOrder[currentIndex - 1]);
+    }
+  };
+
   const handleIncrement = () => {
     // Prevent counting beyond target
     if (supplication.currentCount >= supplication.target) {
@@ -79,7 +95,6 @@ const SupplicationView: React.FC<SupplicationViewProps> = ({
           </button>
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2">
-              <h2 className="text-sm text-gray-500 dark:text-gray-400">{groupName}</h2>
               <span className="text-xs bg-teal-100 dark:bg-teal-900 text-teal-700 dark:text-teal-200 px-2 py-0.5 rounded-full">
                 {currentPosition} من {totalSupplications}
               </span>
@@ -89,13 +104,42 @@ const SupplicationView: React.FC<SupplicationViewProps> = ({
             )}
           </div>
         </div>
-        <div className="flex gap-2 flex-shrink-0">
+        <div className="flex gap-1 flex-shrink-0">
+          {/* Font size decrease */}
+          <button
+            onClick={decreaseFontSize}
+            disabled={fontSize === 'sm'}
+            className="p-2 text-gray-500 hover:text-teal-600 dark:text-gray-400 dark:hover:text-teal-400 disabled:opacity-30 disabled:cursor-not-allowed"
+            aria-label="تصغير الخط">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
+            </svg>
+          </button>
+          {/* Font size increase */}
+          <button
+            onClick={increaseFontSize}
+            disabled={fontSize === '2xl'}
+            className="p-2 text-gray-500 hover:text-teal-600 dark:text-gray-400 dark:hover:text-teal-400 disabled:opacity-30 disabled:cursor-not-allowed"
+            aria-label="تكبير الخط">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            </svg>
+          </button>
+          {/* Reset button */}
+          <button
+            onClick={onReset}
+            className="p-2 text-gray-500 hover:text-yellow-600 dark:text-gray-400 dark:hover:text-yellow-400"
+            aria-label="إعادة تعيين">
+            <ResetIcon />
+          </button>
+          {/* Edit button */}
           <button
             onClick={onEdit}
             className="p-2 text-gray-500 hover:text-blue-500 dark:text-gray-400 dark:hover:text-blue-400"
             aria-label="تعديل">
             <EditIcon />
           </button>
+          {/* Delete button */}
           <button
             onClick={() => setShowDeleteConfirm(true)}
             className="p-2 text-gray-500 hover:text-red-500 dark:text-gray-400 dark:hover:text-red-400"
@@ -107,55 +151,6 @@ const SupplicationView: React.FC<SupplicationViewProps> = ({
 
       {/* Main content - Supplication text */}
       <div className="flex-1 flex flex-col p-6 bg-gray-50 dark:bg-gray-900 relative overflow-hidden">
-        {/* Font size controls */}
-        <div className="flex justify-center gap-2 mb-4">
-          <button
-            onClick={() => setFontSize('sm')}
-            className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
-              fontSize === 'sm'
-                ? 'bg-teal-600 text-white'
-                : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
-            }`}>
-            أ
-          </button>
-          <button
-            onClick={() => setFontSize('md')}
-            className={`px-3 py-1 rounded-md text-base font-medium transition-colors ${
-              fontSize === 'md'
-                ? 'bg-teal-600 text-white'
-                : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
-            }`}>
-            أ
-          </button>
-          <button
-            onClick={() => setFontSize('lg')}
-            className={`px-3 py-1 rounded-md text-lg font-medium transition-colors ${
-              fontSize === 'lg'
-                ? 'bg-teal-600 text-white'
-                : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
-            }`}>
-            أ
-          </button>
-          <button
-            onClick={() => setFontSize('xl')}
-            className={`px-3 py-1 rounded-md text-xl font-medium transition-colors ${
-              fontSize === 'xl'
-                ? 'bg-teal-600 text-white'
-                : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
-            }`}>
-            أ
-          </button>
-          <button
-            onClick={() => setFontSize('2xl')}
-            className={`px-3 py-1 rounded-md text-2xl font-medium transition-colors ${
-              fontSize === '2xl'
-                ? 'bg-teal-600 text-white'
-                : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
-            }`}>
-            أ
-          </button>
-        </div>
-
         {/* Scrollable text area */}
         <div className="flex-1 overflow-y-auto px-4">
           <div className="w-full text-center">
@@ -228,14 +223,6 @@ const SupplicationView: React.FC<SupplicationViewProps> = ({
               : 'bg-teal-600 hover:bg-teal-700 active:bg-teal-800 active:scale-95'
           }`}>
           {supplication.currentCount}
-        </button>
-
-        {/* Reset button */}
-        <button
-          onClick={onReset}
-          className="w-full flex items-center justify-center gap-2 py-3 text-gray-600 dark:text-gray-400 hover:text-yellow-600 dark:hover:text-yellow-400 transition-colors">
-          <ResetIcon />
-          <span className="font-medium">إعادة تعيين العداد</span>
         </button>
       </div>
 
