@@ -72,12 +72,15 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
 
   const selectedGroup = userData.groups.find(g => g.id === selectedGroupId) || null;
 
+  // Determine if sidebar should be visible on mobile
+  const showSidebarOnMobile = !selectedGroup || view === 'statistics' || view === 'settings';
+
   return (
     <div className="flex flex-col md:flex-row h-screen bg-gray-100 dark:bg-gray-900">
-      {/* Mobile: Conditional rendering based on selectedGroup */}
+      {/* Mobile: Conditional rendering based on view and selectedGroup */}
       {/* Desktop: Always show sidebar */}
       <aside className={`
-        ${selectedGroup ? 'hidden md:flex' : 'flex'}
+        ${showSidebarOnMobile ? 'flex' : 'hidden md:flex'}
         w-full md:w-64 bg-white dark:bg-gray-800 shadow-lg p-4 flex-col
       `}>
         <div className="flex items-center justify-between mb-6">
@@ -100,7 +103,10 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
             المجموعات
           </button>
           <button
-            onClick={() => setView('statistics')}
+            onClick={() => {
+              setView('statistics');
+              setSelectedGroupId(null);
+            }}
             className={`py-2 px-2 rounded-md text-xs font-medium transition-colors ${
               view === 'statistics'
                 ? 'bg-teal-600 text-white'
@@ -109,7 +115,10 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
             الإحصائيات
           </button>
           <button
-            onClick={() => setView('settings')}
+            onClick={() => {
+              setView('settings');
+              setSelectedGroupId(null);
+            }}
             className={`py-2 px-2 rounded-md text-xs font-medium transition-colors ${
               view === 'settings'
                 ? 'bg-teal-600 text-white'

@@ -8,6 +8,7 @@ import {
   apiUpdateReminder,
   apiDeleteReminder,
 } from '../utils/api';
+import { useTheme } from '../hooks/useTheme';
 import Modal from './Modal';
 import { PlusIcon, TrashIcon } from './icons';
 
@@ -24,6 +25,7 @@ const Settings: React.FC<SettingsProps> = ({ user, onLogout }) => {
   const [newReminderTime, setNewReminderTime] = useState('09:00');
   const [newReminderMessage, setNewReminderMessage] = useState('');
   const [notificationPermission, setNotificationPermission] = useState<NotificationPermission>('default');
+  const { theme, updateTheme } = useTheme();
 
   useEffect(() => {
     loadSettings();
@@ -41,6 +43,8 @@ const Settings: React.FC<SettingsProps> = ({ user, onLogout }) => {
     try {
       const data = await apiGetSettings();
       setSettings(data);
+      // Apply theme from loaded settings
+      updateTheme(data.theme);
     } catch (error) {
       console.error('Failed to load settings:', error);
     } finally {
@@ -63,6 +67,11 @@ const Settings: React.FC<SettingsProps> = ({ user, onLogout }) => {
     try {
       const updated = await apiUpdateSettings({ [key]: value });
       setSettings(updated);
+
+      // Apply theme immediately when changed
+      if (key === 'theme') {
+        updateTheme(value);
+      }
     } catch (error) {
       console.error('Failed to update setting:', error);
     }
@@ -127,14 +136,10 @@ const Settings: React.FC<SettingsProps> = ({ user, onLogout }) => {
   };
 
   const scheduleNotifications = () => {
-    // Clear existing scheduled notifications
+    // Store reminders in localStorage for service worker to access
     if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
-      // Store reminders in localStorage for service worker to access
       localStorage.setItem('dhikr_reminders', JSON.stringify(reminders.filter(r => r.enabled)));
     }
-
-    // Schedule daily check
-    checkAndShowNotifications();
   };
 
   const checkAndShowNotifications = () => {
@@ -143,21 +148,62 @@ const Settings: React.FC<SettingsProps> = ({ user, onLogout }) => {
     const now = new Date();
     const currentTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
 
+    // Get last notification time from localStorage to prevent duplicates
+    const lastNotificationKey = 'dhikr_last_notification_time';
+    const lastNotificationTime = localStorage.getItem(lastNotificationKey);
+
+    // If we already notified for this minute, skip
+    if (lastNotificationTime === currentTime) {
+      return;
+    }
+
+    console.log('Checking notifications at:', currentTime);
+
+    let notificationShown = false;
     reminders.forEach(reminder => {
       if (reminder.enabled && reminder.time === currentTime) {
+        console.log('Showing notification for:', reminder.time);
         new Notification('عداد الأذكار - تذكير', {
           body: reminder.message || 'حان وقت الأذكار!',
           icon: '/icon-192x192.png',
           badge: '/icon-192x192.png',
+          tag: 'dhikr-reminder-' + currentTime, // Prevents duplicate notifications
         });
+        notificationShown = true;
       }
     });
+
+    // Store current time if we showed a notification
+    if (notificationShown) {
+      localStorage.setItem(lastNotificationKey, currentTime);
+    }
   };
 
-  // Check notifications every minute
+  // Check notifications every minute at the start of each minute
   useEffect(() => {
-    const interval = setInterval(checkAndShowNotifications, 60000);
-    return () => clearInterval(interval);
+    if (!settings?.notificationsEnabled || Notification.permission !== 'granted') return;
+
+    // Check immediately
+    checkAndShowNotifications();
+
+    // Calculate milliseconds until next minute
+    const now = new Date();
+    const msUntilNextMinute = (60 - now.getSeconds()) * 1000 - now.getMilliseconds();
+
+    let interval: NodeJS.Timeout;
+
+    // Wait until the next minute, then check every minute
+    const initialTimeout = setTimeout(() => {
+      checkAndShowNotifications();
+
+      // Now set up interval to check every minute
+      interval = setInterval(checkAndShowNotifications, 60000);
+    }, msUntilNextMinute);
+
+    return () => {
+      clearTimeout(initialTimeout);
+      if (interval) clearInterval(interval);
+    };
   }, [reminders, settings]);
 
   if (loading || !settings) {
