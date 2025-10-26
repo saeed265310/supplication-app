@@ -46,14 +46,17 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
         const groupName = category.name;
         const groupId = await addGroup(groupName);
 
-        // Add all supplications in this category
-        for (const supplication of category.supplications) {
-          await dataActions.addSupplication(
-            groupId as unknown as string,
-            supplication.title || '',
-            supplication.text,
-            supplication.target
-          );
+        // Only add supplications if group was created successfully
+        if (groupId) {
+          // Add all supplications in this category
+          for (const supplication of category.supplications) {
+            await dataActions.addSupplication(
+              groupId,
+              supplication.title || '',
+              supplication.text,
+              supplication.target
+            );
+          }
         }
       }
 

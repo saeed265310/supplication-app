@@ -41,10 +41,12 @@ export const useUserData = (isAuthenticated: boolean) => {
 
   const addGroup = async (name: string) => {
     try {
-        await apiAddGroup(name);
+        const newGroup = await apiAddGroup(name);
         await loadData(); // Re-fetch data to get the new group with its server-generated ID
+        return newGroup.id; // Return the group ID
     } catch (error) {
         console.error("Failed to add group:", error);
+        throw error; // Re-throw so caller knows it failed
     }
   };
   
