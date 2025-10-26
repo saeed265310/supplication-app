@@ -73,7 +73,9 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
   const selectedGroup = userData.groups.find(g => g.id === selectedGroupId) || null;
 
   // Determine if sidebar should be visible on mobile
-  const showSidebarOnMobile = !selectedGroup || view === 'statistics' || view === 'settings';
+  // On mobile: show sidebar only when on groups view with no group selected
+  // On desktop: always show sidebar (handled by md:flex)
+  const showSidebarOnMobile = view === 'groups' && !selectedGroup;
 
   return (
     <div className="flex flex-col md:flex-row h-screen bg-gray-100 dark:bg-gray-900">
@@ -257,7 +259,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
 
       {/* Main content area */}
       <main className={`
-        ${selectedGroup ? 'flex' : 'hidden md:flex'}
+        ${!showSidebarOnMobile ? 'flex' : 'hidden md:flex'}
         flex-1 flex-col h-screen md:h-auto overflow-hidden
       `}>
         {/* Mobile header with back button */}
