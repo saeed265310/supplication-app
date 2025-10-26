@@ -131,3 +131,9 @@ export const apiGetDailyCounts = (days: number = 30): Promise<import('../types')
 export const apiGetTopSupplications = (limit: number = 5): Promise<import('../types').TopSupplication[]> => {
   return apiRequest<import('../types').TopSupplication[]>(`/statistics/top?limit=${limit}`, 'GET');
 };
+
+// --- Library ---
+
+export const apiGetLibrary = (): Promise<import('../types').LibraryData> => {
+  return apiRequest<import('../types').LibraryData>('/library', 'GET');
+};

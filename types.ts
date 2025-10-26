@@ -44,3 +44,21 @@ export interface TopSupplication {
   totalCounted: number;
   groupName: string;
 }
+
+export interface LibrarySupplication {
+  title?: string;
+  text: string;
+  target: number;
+  reference?: string;
+}
+
+export interface LibraryCategory {
+  id: string;
+  name: string;
+  description: string;
+  supplications: LibrarySupplication[];
+}
+
+export interface LibraryData {
+  categories: LibraryCategory[];
+}
