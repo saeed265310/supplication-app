@@ -127,8 +127,8 @@ app.get('/api/check-auth', authenticateToken, (req, res) => {
 app.get('/api/data', authenticateToken, (req, res) => {
     const userId = req.user.id;
     const groupsStmt = db.prepare('SELECT * FROM groups WHERE user_id = ?');
-    const supplicationsStmt = db.prepare('SELECT * FROM supplications WHERE group_id = ?');
-    
+    const supplicationsStmt = db.prepare('SELECT * FROM supplications WHERE group_id = ? ORDER BY position ASC');
+
     try {
         const groups = groupsStmt.all(userId).map(group => {
             const supplications = supplicationsStmt.all(group.id);
@@ -176,11 +176,16 @@ app.delete('/api/groups/:groupId', authenticateToken, (req, res) => {
 // Add a supplication
 app.post('/api/supplications', authenticateToken, (req, res) => {
     const { groupId, title, text, target } = req.body;
-    const stmt = db.prepare('INSERT INTO supplications (group_id, title, text, target, currentCount) VALUES (?, ?, ?, ?, ?)');
     try {
         // TODO: Add a check to ensure the group belongs to the user
-        const info = stmt.run(groupId, title, text, target, 0);
-        res.status(201).json({ id: info.lastInsertRowid, group_id: groupId, title, text, target, currentCount: 0 });
+        // Get the max position for this group
+        const maxPosStmt = db.prepare('SELECT MAX(position) as maxPos FROM supplications WHERE group_id = ?');
+        const maxPosResult = maxPosStmt.get(groupId);
+        const newPosition = (maxPosResult.maxPos !== null ? maxPosResult.maxPos + 1 : 0);
+
+        const stmt = db.prepare('INSERT INTO supplications (group_id, title, text, target, currentCount, position) VALUES (?, ?, ?, ?, ?, ?)');
+        const info = stmt.run(groupId, title, text, target, 0, newPosition);
+        res.status(201).json({ id: info.lastInsertRowid, group_id: groupId, title, text, target, currentCount: 0, position: newPosition });
     } catch(e) {
         res.status(500).json({ message: 'Failed to add supplication' });
     }
@@ -279,13 +284,44 @@ app.post('/api/groups/:groupId/reset', authenticateToken, (req, res) => {
         resetStmt.run(groupId);
 
         // Get all updated supplications
-        const selectStmt = db.prepare('SELECT * FROM supplications WHERE group_id = ?');
+        const selectStmt = db.prepare('SELECT * FROM supplications WHERE group_id = ? ORDER BY position ASC');
         const supplications = selectStmt.all(groupId);
 
         res.json(supplications);
     } catch (e) {
         console.error('Error resetting group supplications:', e);
         res.status(500).json({ message: 'Failed to reset group supplications' });
+    }
+});
+
+// Reorder supplications in a group
+app.post('/api/groups/:groupId/reorder', authenticateToken, (req, res) => {
+    const { groupId } = req.params;
+    const { supplicationIds } = req.body; // Array of supplication IDs in new order
+    const userId = req.user.id;
+
+    try {
+        // Verify group belongs to user
+        const groupStmt = db.prepare('SELECT * FROM groups WHERE id = ? AND user_id = ?');
+        const group = groupStmt.get(groupId, userId);
+        if (!group) {
+            return res.status(404).json({ message: 'Group not found' });
+        }
+
+        // Update positions
+        const updateStmt = db.prepare('UPDATE supplications SET position = ? WHERE id = ? AND group_id = ?');
+        supplicationIds.forEach((supplicationId, index) => {
+            updateStmt.run(index, supplicationId, groupId);
+        });
+
+        // Get all updated supplications
+        const selectStmt = db.prepare('SELECT * FROM supplications WHERE group_id = ? ORDER BY position ASC');
+        const supplications = selectStmt.all(groupId);
+
+        res.json(supplications);
+    } catch (e) {
+        console.error('Error reordering supplications:', e);
+        res.status(500).json({ message: 'Failed to reorder supplications' });
     }
 });
 

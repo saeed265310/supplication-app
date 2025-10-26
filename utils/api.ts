@@ -118,6 +118,10 @@ export const apiResetGroupSupplications = (groupId: string): Promise<Supplicatio
   return apiRequest<Supplication[]>(`/groups/${groupId}/reset`, 'POST');
 };
 
+export const apiReorderSupplications = (groupId: string, supplicationIds: string[]): Promise<Supplication[]> => {
+  return apiRequest<Supplication[]>(`/groups/${groupId}/reorder`, 'POST', { supplicationIds });
+};
+
 // --- Statistics ---
 
 export const apiGetStatisticsSummary = (): Promise<import('../types').StatisticsSummary> => {

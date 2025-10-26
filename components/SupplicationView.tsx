@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import type { Supplication } from '../types';
-import Modal from './Modal';
-import { ArrowRightIcon, EditIcon, TrashIcon, ResetIcon } from './icons';
+import { ArrowRightIcon, ResetIcon } from './icons';
 
 interface SupplicationViewProps {
   supplication: Supplication;
@@ -9,8 +8,6 @@ interface SupplicationViewProps {
   onBack: () => void;
   onIncrement: () => void;
   onReset: () => void;
-  onDelete: () => void;
-  onEdit: () => void;
   isLastInGroup: boolean;
   totalSupplications: number;
   currentPosition: number;
@@ -22,17 +19,49 @@ const SupplicationView: React.FC<SupplicationViewProps> = ({
   onBack,
   onIncrement,
   onReset,
-  onDelete,
-  onEdit,
   isLastInGroup,
   totalSupplications,
   currentPosition,
 }) => {
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showTransition, setShowTransition] = useState(false);
+  const [fontSize, setFontSize] = useState<'3xs' | '2xs' | 'xs' | 'sm' | 'md' | 'lg' | 'xl' | '2xl'>('2xs');
+  const [fontWeight, setFontWeight] = useState<'normal' | 'medium' | 'semibold' | 'bold'>('bold');
   const progress = supplication.target > 0 ? (supplication.currentCount / supplication.target) * 100 : 0;
   const isCompleted = supplication.currentCount >= supplication.target;
   const remaining = Math.max(0, supplication.target - supplication.currentCount);
+
+  const fontSizeClasses = {
+    '3xs': 'text-sm md:text-base',
+    '2xs': 'text-base md:text-lg',
+    'xs': 'text-lg md:text-xl',
+    'sm': 'text-xl md:text-2xl',
+    'md': 'text-2xl md:text-3xl',
+    'lg': 'text-3xl md:text-4xl',
+    'xl': 'text-4xl md:text-5xl',
+    '2xl': 'text-5xl md:text-6xl',
+  };
+
+  const fontWeightClasses = {
+    'normal': 'font-normal',
+    'medium': 'font-medium',
+    'semibold': 'font-semibold',
+    'bold': 'font-bold',
+  };
+
+  const fontSizeOrder: ('3xs' | '2xs' | 'xs' | 'sm' | 'md' | 'lg' | 'xl' | '2xl')[] = ['3xs', '2xs', 'xs', 'sm', 'md', 'lg', 'xl', '2xl'];
+  const fontWeightOrder: ('normal' | 'medium' | 'semibold' | 'bold')[] = ['normal', 'medium', 'semibold', 'bold'];
+
+  const cycleFontSize = () => {
+    const currentIndex = fontSizeOrder.indexOf(fontSize);
+    const nextIndex = (currentIndex + 1) % fontSizeOrder.length;
+    setFontSize(fontSizeOrder[nextIndex]);
+  };
+
+  const cycleFontWeight = () => {
+    const currentIndex = fontWeightOrder.indexOf(fontWeight);
+    const nextIndex = (currentIndex + 1) % fontWeightOrder.length;
+    setFontWeight(fontWeightOrder[nextIndex]);
+  };
 
   const handleIncrement = () => {
     // Prevent counting beyond target
@@ -52,66 +81,61 @@ const SupplicationView: React.FC<SupplicationViewProps> = ({
     }
   };
 
-  const handleDelete = () => {
-    onDelete();
-    onBack();
-  };
-
   return (
-    <div className="flex flex-col h-full">
-      {/* Header with back button */}
-      <div className="bg-white dark:bg-gray-800 shadow-md p-4 flex items-center justify-between">
-        <div className="flex items-center gap-3 flex-1 min-w-0">
+    <div className="flex flex-col h-full bg-gray-50 dark:bg-gray-900 relative">
+      {/* Floating controls - Top */}
+      <div className="absolute top-4 left-4 right-4 z-20 flex items-center justify-between">
+        <button
+          onClick={onBack}
+          className="p-3 bg-white dark:bg-gray-800 rounded-full shadow-lg text-teal-600 dark:text-teal-400 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+          aria-label="العودة للمجموعة">
+          <ArrowRightIcon />
+        </button>
+        <div className="flex gap-2">
           <button
-            onClick={onBack}
-            className="text-teal-600 dark:text-teal-400 hover:text-teal-700 dark:hover:text-teal-300 flex-shrink-0"
-            aria-label="العودة للمجموعة">
-            <ArrowRightIcon />
-          </button>
-          <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-2">
-              <h2 className="text-sm text-gray-500 dark:text-gray-400">{groupName}</h2>
-              <span className="text-xs bg-teal-100 dark:bg-teal-900 text-teal-700 dark:text-teal-200 px-2 py-0.5 rounded-full">
-                {currentPosition} من {totalSupplications}
-              </span>
-            </div>
-            {supplication.title && (
-              <h3 className="text-lg font-bold text-gray-800 dark:text-gray-100 truncate">{supplication.title}</h3>
-            )}
-          </div>
-        </div>
-        <div className="flex gap-2 flex-shrink-0">
-          <button
-            onClick={onEdit}
-            className="p-2 text-gray-500 hover:text-blue-500 dark:text-gray-400 dark:hover:text-blue-400"
-            aria-label="تعديل">
-            <EditIcon />
+            onClick={cycleFontSize}
+            className="p-3 bg-white dark:bg-gray-800 rounded-full shadow-lg text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+            aria-label="تغيير حجم الخط">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8h16M4 16h8" />
+            </svg>
           </button>
           <button
-            onClick={() => setShowDeleteConfirm(true)}
-            className="p-2 text-gray-500 hover:text-red-500 dark:text-gray-400 dark:hover:text-red-400"
-            aria-label="حذف">
-            <TrashIcon />
+            onClick={cycleFontWeight}
+            className="p-3 bg-white dark:bg-gray-800 rounded-full shadow-lg text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+            aria-label="تغيير سمك الخط">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 12h12M6 6h12M6 18h12" />
+            </svg>
+          </button>
+          <button
+            onClick={onReset}
+            className="p-3 bg-white dark:bg-gray-800 rounded-full shadow-lg text-yellow-600 dark:text-yellow-400 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+            aria-label="إعادة تعيين">
+            <ResetIcon />
           </button>
         </div>
       </div>
 
       {/* Main content - Supplication text */}
-      <div className="flex-1 flex items-center justify-center p-6 bg-gray-50 dark:bg-gray-900 relative">
-        <div className="max-w-2xl w-full text-center">
-          <p className="text-3xl md:text-4xl lg:text-5xl font-bold text-gray-800 dark:text-gray-100 leading-relaxed mb-8">
-            {supplication.text}
-          </p>
+      <div className="flex-1 flex flex-col p-6 pt-24 relative overflow-hidden">
+        {/* Scrollable text area */}
+        <div className="flex-1 overflow-y-auto px-4">
+          <div className="w-full text-center">
+            <p className={`${fontSizeClasses[fontSize]} ${fontWeightClasses[fontWeight]} text-gray-800 dark:text-gray-100 leading-relaxed mb-8 whitespace-pre-line`}>
+              {supplication.text}
+            </p>
 
-          {/* Status badge */}
-          {isCompleted && !showTransition && (
-            <div className="inline-flex items-center gap-2 bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-100 px-4 py-2 rounded-full mb-4">
-              <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-              </svg>
-              <span className="font-semibold">اكتمل الهدف!</span>
-            </div>
-          )}
+            {/* Status badge */}
+            {isCompleted && !showTransition && (
+              <div className="inline-flex items-center gap-2 bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-100 px-4 py-2 rounded-full mb-4">
+                <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                </svg>
+                <span className="font-semibold">اكتمل الهدف!</span>
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Transition overlay */}
@@ -168,39 +192,7 @@ const SupplicationView: React.FC<SupplicationViewProps> = ({
           }`}>
           {supplication.currentCount}
         </button>
-
-        {/* Reset button */}
-        <button
-          onClick={onReset}
-          className="w-full flex items-center justify-center gap-2 py-3 text-gray-600 dark:text-gray-400 hover:text-yellow-600 dark:hover:text-yellow-400 transition-colors">
-          <ResetIcon />
-          <span className="font-medium">إعادة تعيين العداد</span>
-        </button>
       </div>
-
-      {/* Delete confirmation modal */}
-      <Modal
-        isOpen={showDeleteConfirm}
-        onClose={() => setShowDeleteConfirm(false)}
-        title="تأكيد الحذف">
-        <div className="space-y-4">
-          <p className="text-gray-700 dark:text-gray-300">
-            هل أنت متأكد من حذف هذا الذكر؟ لا يمكن التراجع عن هذا الإجراء.
-          </p>
-          <div className="flex justify-end gap-2">
-            <button
-              onClick={() => setShowDeleteConfirm(false)}
-              className="px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500">
-              إلغاء
-            </button>
-            <button
-              onClick={handleDelete}
-              className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700">
-              حذف
-            </button>
-          </div>
-        </div>
-      </Modal>
     </div>
   );
 };
