@@ -62,3 +62,19 @@ export interface LibraryCategory {
 export interface LibraryData {
   categories: LibraryCategory[];
 }
+
+export interface UserSettings {
+  userId: string;
+  notificationsEnabled: boolean;
+  theme: 'light' | 'dark' | 'auto';
+  defaultFontSize: '3xs' | '2xs' | 'xs' | 'sm' | 'md' | 'lg' | 'xl' | '2xl';
+  defaultFontWeight: 'normal' | 'medium' | 'semibold' | 'bold';
+}
+
+export interface ReminderTime {
+  id: string;
+  userId: string;
+  time: string; // HH:MM format
+  message?: string;
+  enabled: boolean;
+}

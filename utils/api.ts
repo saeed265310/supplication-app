@@ -141,3 +141,29 @@ export const apiGetTopSupplications = (limit: number = 5): Promise<import('../ty
 export const apiGetLibrary = (): Promise<import('../types').LibraryData> => {
   return apiRequest<import('../types').LibraryData>('/library', 'GET');
 };
+
+// --- Settings ---
+
+export const apiGetSettings = (): Promise<import('../types').UserSettings> => {
+  return apiRequest<import('../types').UserSettings>('/settings', 'GET');
+};
+
+export const apiUpdateSettings = (settings: Partial<import('../types').UserSettings>): Promise<import('../types').UserSettings> => {
+  return apiRequest<import('../types').UserSettings>('/settings', 'PUT', settings);
+};
+
+export const apiGetReminders = (): Promise<import('../types').ReminderTime[]> => {
+  return apiRequest<import('../types').ReminderTime[]>('/settings/reminders', 'GET');
+};
+
+export const apiAddReminder = (time: string, message?: string, enabled?: boolean): Promise<import('../types').ReminderTime> => {
+  return apiRequest<import('../types').ReminderTime>('/settings/reminders', 'POST', { time, message, enabled });
+};
+
+export const apiUpdateReminder = (id: string, data: Partial<import('../types').ReminderTime>): Promise<import('../types').ReminderTime> => {
+  return apiRequest<import('../types').ReminderTime>(`/settings/reminders/${id}`, 'PUT', data);
+};
+
+export const apiDeleteReminder = (id: string): Promise<void> => {
+  return apiRequest<void>(`/settings/reminders/${id}`, 'DELETE');
+};

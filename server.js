@@ -481,6 +481,178 @@ app.get('/api/library', (req, res) => {
     }
 });
 
+// --- SETTINGS ENDPOINTS ---
+
+// Get user settings
+app.get('/api/settings', authenticateToken, (req, res) => {
+    const userId = req.user.id;
+    try {
+        let stmt = db.prepare('SELECT * FROM user_settings WHERE user_id = ?');
+        let settings = stmt.get(userId);
+
+        // If no settings exist, create default settings
+        if (!settings) {
+            const insertStmt = db.prepare(`
+                INSERT INTO user_settings (user_id, notifications_enabled, theme, default_font_size, default_font_weight)
+                VALUES (?, 0, 'auto', '2xs', 'bold')
+            `);
+            insertStmt.run(userId);
+            settings = {
+                user_id: userId,
+                notifications_enabled: 0,
+                theme: 'auto',
+                default_font_size: '2xs',
+                default_font_weight: 'bold'
+            };
+        }
+
+        res.json({
+            userId: settings.user_id.toString(),
+            notificationsEnabled: Boolean(settings.notifications_enabled),
+            theme: settings.theme,
+            defaultFontSize: settings.default_font_size,
+            defaultFontWeight: settings.default_font_weight
+        });
+    } catch (e) {
+        console.error('Failed to get settings:', e);
+        res.status(500).json({ message: 'Failed to get settings' });
+    }
+});
+
+// Update user settings
+app.put('/api/settings', authenticateToken, (req, res) => {
+    const userId = req.user.id;
+    const { notificationsEnabled, theme, defaultFontSize, defaultFontWeight } = req.body;
+
+    try {
+        const stmt = db.prepare(`
+            INSERT INTO user_settings (user_id, notifications_enabled, theme, default_font_size, default_font_weight)
+            VALUES (?, ?, ?, ?, ?)
+            ON CONFLICT(user_id) DO UPDATE SET
+                notifications_enabled = excluded.notifications_enabled,
+                theme = excluded.theme,
+                default_font_size = excluded.default_font_size,
+                default_font_weight = excluded.default_font_weight
+        `);
+
+        stmt.run(
+            userId,
+            notificationsEnabled ? 1 : 0,
+            theme || 'auto',
+            defaultFontSize || '2xs',
+            defaultFontWeight || 'bold'
+        );
+
+        res.json({
+            userId: userId.toString(),
+            notificationsEnabled: Boolean(notificationsEnabled),
+            theme: theme || 'auto',
+            defaultFontSize: defaultFontSize || '2xs',
+            defaultFontWeight: defaultFontWeight || 'bold'
+        });
+    } catch (e) {
+        console.error('Failed to update settings:', e);
+        res.status(500).json({ message: 'Failed to update settings' });
+    }
+});
+
+// Get reminder times
+app.get('/api/settings/reminders', authenticateToken, (req, res) => {
+    const userId = req.user.id;
+    try {
+        const stmt = db.prepare('SELECT * FROM reminder_times WHERE user_id = ? ORDER BY time ASC');
+        const reminders = stmt.all(userId);
+
+        res.json(reminders.map(r => ({
+            id: r.id.toString(),
+            userId: r.user_id.toString(),
+            time: r.time,
+            message: r.message,
+            enabled: Boolean(r.enabled)
+        })));
+    } catch (e) {
+        console.error('Failed to get reminders:', e);
+        res.status(500).json({ message: 'Failed to get reminders' });
+    }
+});
+
+// Add reminder time
+app.post('/api/settings/reminders', authenticateToken, (req, res) => {
+    const userId = req.user.id;
+    const { time, message, enabled } = req.body;
+
+    if (!time) {
+        return res.status(400).json({ message: 'Time is required' });
+    }
+
+    try {
+        const stmt = db.prepare('INSERT INTO reminder_times (user_id, time, message, enabled) VALUES (?, ?, ?, ?)');
+        const info = stmt.run(userId, time, message || null, enabled !== false ? 1 : 0);
+
+        res.status(201).json({
+            id: info.lastInsertRowid.toString(),
+            userId: userId.toString(),
+            time,
+            message: message || null,
+            enabled: enabled !== false
+        });
+    } catch (e) {
+        console.error('Failed to add reminder:', e);
+        res.status(500).json({ message: 'Failed to add reminder' });
+    }
+});
+
+// Update reminder time
+app.put('/api/settings/reminders/:id', authenticateToken, (req, res) => {
+    const userId = req.user.id;
+    const { id } = req.params;
+    const { time, message, enabled } = req.body;
+
+    try {
+        // Verify the reminder belongs to the user
+        const checkStmt = db.prepare('SELECT * FROM reminder_times WHERE id = ? AND user_id = ?');
+        const reminder = checkStmt.get(id, userId);
+
+        if (!reminder) {
+            return res.status(404).json({ message: 'Reminder not found' });
+        }
+
+        const stmt = db.prepare('UPDATE reminder_times SET time = ?, message = ?, enabled = ? WHERE id = ? AND user_id = ?');
+        stmt.run(time || reminder.time, message !== undefined ? message : reminder.message, enabled !== undefined ? (enabled ? 1 : 0) : reminder.enabled, id, userId);
+
+        res.json({
+            id: id,
+            userId: userId.toString(),
+            time: time || reminder.time,
+            message: message !== undefined ? message : reminder.message,
+            enabled: enabled !== undefined ? Boolean(enabled) : Boolean(reminder.enabled)
+        });
+    } catch (e) {
+        console.error('Failed to update reminder:', e);
+        res.status(500).json({ message: 'Failed to update reminder' });
+    }
+});
+
+// Delete reminder time
+app.delete('/api/settings/reminders/:id', authenticateToken, (req, res) => {
+    const userId = req.user.id;
+    const { id } = req.params;
+
+    try {
+        const stmt = db.prepare('DELETE FROM reminder_times WHERE id = ? AND user_id = ?');
+        const info = stmt.run(id, userId);
+
+        if (info.changes === 0) {
+            return res.status(404).json({ message: 'Reminder not found' });
+        }
+
+        res.json({ message: 'Reminder deleted successfully' });
+    } catch (e) {
+        console.error('Failed to delete reminder:', e);
+        res.status(500).json({ message: 'Failed to delete reminder' });
+    }
+});
+
 
 app.listen(PORT, () => {
     console.log(`Server is running on http://localhost:${PORT}`);

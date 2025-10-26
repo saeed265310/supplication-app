@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import type { User } from '../types';
 import { useUserData } from '../hooks/useUserData';
 import GroupView from './GroupView';
 import Statistics from './Statistics';
+import Settings from './Settings';
 import Modal from './Modal';
 import { PlusIcon, LogoutIcon, ArrowRightIcon } from './icons';
 import { apiGetLibrary } from '../utils/api';
@@ -15,10 +16,44 @@ interface DashboardProps {
 const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
   const { userData, loading, addGroup, deleteGroup, resetGroupSupplications, reorderSupplications, ...dataActions } = useUserData(!!user);
   const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
-  const [view, setView] = useState<'groups' | 'statistics'>('groups');
+  const [view, setView] = useState<'groups' | 'statistics' | 'settings'>('groups');
   const [isAddGroupModalOpen, setIsAddGroupModalOpen] = useState(false);
   const [isImportingLibrary, setIsImportingLibrary] = useState(false);
   const [newGroupName, setNewGroupName] = useState('');
+
+  // Handle browser back/forward navigation
+  useEffect(() => {
+    const handlePopState = (event: PopStateEvent) => {
+      if (event.state) {
+        setView(event.state.view || 'groups');
+        setSelectedGroupId(event.state.selectedGroupId || null);
+      } else {
+        // No state means we're at the initial page
+        setView('groups');
+        setSelectedGroupId(null);
+      }
+    };
+
+    // Set initial state
+    if (!window.history.state) {
+      window.history.replaceState({ view: 'groups', selectedGroupId: null }, '');
+    }
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
+  const handleViewChange = (newView: 'groups' | 'statistics' | 'settings') => {
+    setView(newView);
+    setSelectedGroupId(null);
+
+    // Push state to history for back button support
+    window.history.pushState(
+      { view: newView, selectedGroupId: null },
+      '',
+      `#${newView}`
+    );
+  };
 
   const handleAddGroup = () => {
     if (newGroupName.trim()) {
@@ -30,10 +65,20 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
 
   const handleSelectGroup = (groupId: string) => {
     setSelectedGroupId(groupId);
+
+    // Push state to history for back button support
+    window.history.pushState(
+      { view: 'groups', selectedGroupId: groupId },
+      '',
+      `#group-${groupId}`
+    );
   };
 
   const handleBackToGroups = () => {
     setSelectedGroupId(null);
+
+    // Go back in history instead of pushing new state
+    window.history.back();
   };
 
   const handleImportLibrary = async () => {
@@ -71,12 +116,17 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
 
   const selectedGroup = userData.groups.find(g => g.id === selectedGroupId) || null;
 
+  // Determine if sidebar should be visible on mobile
+  // On mobile: show sidebar only when on groups view with no group selected
+  // On desktop: always show sidebar (handled by md:flex)
+  const showSidebarOnMobile = view === 'groups' && !selectedGroup;
+
   return (
     <div className="flex flex-col md:flex-row h-screen bg-gray-100 dark:bg-gray-900">
-      {/* Mobile: Conditional rendering based on selectedGroup */}
+      {/* Mobile: Conditional rendering based on view and selectedGroup */}
       {/* Desktop: Always show sidebar */}
       <aside className={`
-        ${selectedGroup ? 'hidden md:flex' : 'flex'}
+        ${showSidebarOnMobile ? 'flex' : 'hidden md:flex'}
         w-full md:w-64 bg-white dark:bg-gray-800 shadow-lg p-4 flex-col
       `}>
         <div className="flex items-center justify-between mb-6">
@@ -88,10 +138,10 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
         <p className="mb-4 text-sm text-gray-600 dark:text-gray-300">مرحباً, {user.username}</p>
 
         {/* Navigation Tabs */}
-        <div className="flex gap-2 mb-4">
+        <div className="grid grid-cols-3 gap-2 mb-4">
           <button
-            onClick={() => setView('groups')}
-            className={`flex-1 py-2 px-2 rounded-md text-xs font-medium transition-colors ${
+            onClick={() => handleViewChange('groups')}
+            className={`py-2 px-2 rounded-md text-xs font-medium transition-colors ${
               view === 'groups'
                 ? 'bg-teal-600 text-white'
                 : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
@@ -99,13 +149,22 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
             المجموعات
           </button>
           <button
-            onClick={() => setView('statistics')}
-            className={`flex-1 py-2 px-2 rounded-md text-xs font-medium transition-colors ${
+            onClick={() => handleViewChange('statistics')}
+            className={`py-2 px-2 rounded-md text-xs font-medium transition-colors ${
               view === 'statistics'
                 ? 'bg-teal-600 text-white'
                 : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
             }`}>
             الإحصائيات
+          </button>
+          <button
+            onClick={() => handleViewChange('settings')}
+            className={`py-2 px-2 rounded-md text-xs font-medium transition-colors ${
+              view === 'settings'
+                ? 'bg-teal-600 text-white'
+                : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
+            }`}>
+            الإعدادات
           </button>
         </div>
 
@@ -238,7 +297,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
 
       {/* Main content area */}
       <main className={`
-        ${selectedGroup ? 'flex' : 'hidden md:flex'}
+        ${!showSidebarOnMobile ? 'flex' : 'hidden md:flex'}
         flex-1 flex-col h-screen md:h-auto overflow-hidden
       `}>
         {/* Mobile header with back button */}
@@ -256,7 +315,9 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
 
         {/* Content */}
         <div className="flex-1 overflow-y-auto p-4 md:p-6">
-          {view === 'statistics' ? (
+          {view === 'settings' ? (
+            <Settings user={user} onLogout={onLogout} />
+          ) : view === 'statistics' ? (
             <Statistics />
           ) : loading ? (
             <div className="flex items-center justify-center h-full">
