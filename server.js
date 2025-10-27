@@ -8,7 +8,7 @@ const db = require('./database.js');
 const { helmetConfig, generalLimiter, authLimiter, incrementLimiter } = require('./server/middleware/security');
 const sanitizeInput = require('./server/middleware/sanitize');
 const { errorHandler, catchAsync } = require('./server/middleware/errorHandler');
-const { validate } = require('./server/middleware/validate');
+const { validate, validateParams, validateQuery } = require('./server/middleware/validate');
 const AppError = require('./server/utils/AppError');
 
 // Validators
@@ -24,6 +24,13 @@ const {
   createReminderSchema,
   updateReminderSchema
 } = require('./server/validators/settings.validator');
+const {
+  idSchema,
+  groupIdSchema,
+  supplicationIdSchema,
+  daysQuerySchema,
+  limitQuerySchema
+} = require('./server/validators/common.validator');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -183,504 +190,515 @@ app.post('/api/groups', authenticateToken, validate(createGroupSchema), catchAsy
 }));
 
 // Delete a group
-app.delete('/api/groups/:groupId', authenticateToken, (req, res) => {
+app.delete('/api/groups/:groupId', authenticateToken, validateParams(groupIdSchema), catchAsync(async (req, res, next) => {
     const { groupId } = req.params;
     const userId = req.user.id;
+
     // Ensure user owns the group before deleting
     const stmt = db.prepare('DELETE FROM groups WHERE id = ? AND user_id = ?');
-    try {
-        const info = stmt.run(groupId, userId);
-        if (info.changes > 0) {
-            // Also delete associated supplications (cascade delete handles this)
-            res.sendStatus(204);
-        } else {
-            res.status(404).json({ message: 'Group not found or not owned by user' });
-        }
-    } catch(e) {
-        res.status(500).json({ message: 'Failed to delete group' });
+    const info = stmt.run(groupId, userId);
+
+    if (info.changes > 0) {
+        // Also delete associated supplications (cascade delete handles this)
+        res.sendStatus(204);
+    } else {
+        return next(new AppError('Group not found or not owned by user', 404));
     }
-});
+}));
 
 
 // Add a supplication
-app.post('/api/supplications', authenticateToken, (req, res) => {
+app.post('/api/supplications', authenticateToken, validate(createSupplicationSchema), catchAsync(async (req, res, next) => {
     const { groupId, title, text, target } = req.body;
-    try {
-        // TODO: Add a check to ensure the group belongs to the user
-        // Get the max position for this group
-        const maxPosStmt = db.prepare('SELECT MAX(position) as maxPos FROM supplications WHERE group_id = ?');
-        const maxPosResult = maxPosStmt.get(groupId);
-        const newPosition = (maxPosResult.maxPos !== null ? maxPosResult.maxPos + 1 : 0);
+    const userId = req.user.id;
 
-        const stmt = db.prepare('INSERT INTO supplications (group_id, title, text, target, currentCount, position) VALUES (?, ?, ?, ?, ?, ?)');
-        const info = stmt.run(groupId, title, text, target, 0, newPosition);
-        res.status(201).json({ id: info.lastInsertRowid, group_id: groupId, title, text, target, currentCount: 0, position: newPosition });
-    } catch(e) {
-        res.status(500).json({ message: 'Failed to add supplication' });
+    // Verify the group belongs to the user
+    const groupCheckStmt = db.prepare('SELECT * FROM groups WHERE id = ? AND user_id = ?');
+    const group = groupCheckStmt.get(groupId, userId);
+
+    if (!group) {
+        return next(new AppError('Group not found or not owned by user', 404));
     }
-});
+
+    // Get the max position for this group
+    const maxPosStmt = db.prepare('SELECT MAX(position) as maxPos FROM supplications WHERE group_id = ?');
+    const maxPosResult = maxPosStmt.get(groupId);
+    const newPosition = (maxPosResult.maxPos !== null ? maxPosResult.maxPos + 1 : 0);
+
+    const stmt = db.prepare('INSERT INTO supplications (group_id, title, text, target, currentCount, position) VALUES (?, ?, ?, ?, ?, ?)');
+    const info = stmt.run(groupId, title, text, target, 0, newPosition);
+
+    res.status(201).json({
+        id: info.lastInsertRowid,
+        group_id: groupId,
+        title,
+        text,
+        target,
+        currentCount: 0,
+        position: newPosition
+    });
+}));
 
 // Update a supplication
-app.put('/api/supplications/:supplicationId', authenticateToken, (req, res) => {
+app.put('/api/supplications/:supplicationId', authenticateToken, validateParams(supplicationIdSchema), validate(updateSupplicationSchema), catchAsync(async (req, res, next) => {
     const { supplicationId } = req.params;
     const { title, text, target } = req.body;
-    // TODO: Add a check to ensure the supplication belongs to the user
-    const stmt = db.prepare('UPDATE supplications SET title = ?, text = ?, target = ? WHERE id = ?');
-    try {
-        stmt.run(title, text, target, supplicationId);
-        const updatedStmt = db.prepare('SELECT * FROM supplications WHERE id = ?');
-        const updatedSupplication = updatedStmt.get(supplicationId);
-        res.json(updatedSupplication);
-    } catch (e) {
-        res.status(500).json({ message: 'Failed to update supplication' });
+    const userId = req.user.id;
+
+    // Verify the supplication belongs to the user
+    const ownerCheckStmt = db.prepare(`
+        SELECT s.* FROM supplications s
+        JOIN groups g ON s.group_id = g.id
+        WHERE s.id = ? AND g.user_id = ?
+    `);
+    const supplication = ownerCheckStmt.get(supplicationId, userId);
+
+    if (!supplication) {
+        return next(new AppError('Supplication not found or not owned by user', 404));
     }
-});
+
+    // Build dynamic update query based on provided fields
+    const updates = [];
+    const values = [];
+
+    if (title !== undefined) {
+        updates.push('title = ?');
+        values.push(title);
+    }
+    if (text !== undefined) {
+        updates.push('text = ?');
+        values.push(text);
+    }
+    if (target !== undefined) {
+        updates.push('target = ?');
+        values.push(target);
+    }
+
+    values.push(supplicationId);
+
+    const stmt = db.prepare(`UPDATE supplications SET ${updates.join(', ')} WHERE id = ?`);
+    stmt.run(...values);
+
+    const updatedStmt = db.prepare('SELECT * FROM supplications WHERE id = ?');
+    const updatedSupplication = updatedStmt.get(supplicationId);
+
+    res.json(updatedSupplication);
+}));
 
 // Delete a supplication
-app.delete('/api/supplications/:supplicationId', authenticateToken, (req, res) => {
-    const { supplicationId } = req.params;
-     // TODO: Add a check to ensure the supplication belongs to the user
-    const stmt = db.prepare('DELETE FROM supplications WHERE id = ?');
-    try {
-        stmt.run(supplicationId);
-        res.sendStatus(204);
-    } catch (e) {
-        res.status(500).json({ message: 'Failed to delete supplication' });
-    }
-});
-
-// Increment/Reset Count
-const updateCount = (req, res, isReset = false) => {
+app.delete('/api/supplications/:supplicationId', authenticateToken, validateParams(supplicationIdSchema), catchAsync(async (req, res, next) => {
     const { supplicationId } = req.params;
     const userId = req.user.id;
 
-    try {
-        // Get supplication details for history tracking
-        const selectStmt = db.prepare('SELECT * FROM supplications WHERE id = ?');
-        const supplication = selectStmt.get(supplicationId);
+    // Verify the supplication belongs to the user
+    const ownerCheckStmt = db.prepare(`
+        SELECT s.* FROM supplications s
+        JOIN groups g ON s.group_id = g.id
+        WHERE s.id = ? AND g.user_id = ?
+    `);
+    const supplication = ownerCheckStmt.get(supplicationId, userId);
 
-        if (!supplication) {
-            return res.status(404).json({ message: 'Supplication not found' });
-        }
-
-        // Update count
-        const updateStmt = isReset
-            ? db.prepare('UPDATE supplications SET currentCount = 0 WHERE id = ?')
-            : db.prepare('UPDATE supplications SET currentCount = currentCount + 1 WHERE id = ?');
-
-        updateStmt.run(supplicationId);
-
-        // Record history for increments (not resets)
-        if (!isReset) {
-            const historyStmt = db.prepare(`
-                INSERT INTO count_history (user_id, group_id, supplication_id, count, timestamp)
-                VALUES (?, ?, ?, 1, ?)
-            `);
-            historyStmt.run(userId, supplication.group_id, supplicationId, Date.now());
-        }
-
-        const updatedSupplication = selectStmt.get(supplicationId);
-        res.json(updatedSupplication);
-    } catch (e) {
-        console.error('Failed to update count:', e);
-        res.status(500).json({ message: 'Failed to update count' });
+    if (!supplication) {
+        return next(new AppError('Supplication not found or not owned by user', 404));
     }
-};
 
-app.post('/api/supplications/:supplicationId/increment', authenticateToken, (req, res) => updateCount(req, res, false));
-app.post('/api/supplications/:supplicationId/reset', authenticateToken, (req, res) => updateCount(req, res, true));
+    const stmt = db.prepare('DELETE FROM supplications WHERE id = ?');
+    stmt.run(supplicationId);
+
+    res.sendStatus(204);
+}));
+
+// Increment supplication count
+app.post('/api/supplications/:supplicationId/increment', authenticateToken, validateParams(supplicationIdSchema), incrementLimiter, catchAsync(async (req, res, next) => {
+    const { supplicationId } = req.params;
+    const userId = req.user.id;
+
+    // Get supplication details for history tracking
+    const selectStmt = db.prepare('SELECT * FROM supplications WHERE id = ?');
+    const supplication = selectStmt.get(supplicationId);
+
+    if (!supplication) {
+        return next(new AppError('Supplication not found', 404));
+    }
+
+    // Update count
+    const updateStmt = db.prepare('UPDATE supplications SET currentCount = currentCount + 1 WHERE id = ?');
+    updateStmt.run(supplicationId);
+
+    // Record history
+    const historyStmt = db.prepare(`
+        INSERT INTO count_history (user_id, group_id, supplication_id, count, timestamp)
+        VALUES (?, ?, ?, 1, ?)
+    `);
+    historyStmt.run(userId, supplication.group_id, supplicationId, Date.now());
+
+    const updatedSupplication = selectStmt.get(supplicationId);
+    res.json(updatedSupplication);
+}));
+
+// Reset supplication count
+app.post('/api/supplications/:supplicationId/reset', authenticateToken, validateParams(supplicationIdSchema), catchAsync(async (req, res, next) => {
+    const { supplicationId } = req.params;
+    const userId = req.user.id;
+
+    // Verify supplication belongs to user
+    const ownerCheckStmt = db.prepare(`
+        SELECT s.* FROM supplications s
+        JOIN groups g ON s.group_id = g.id
+        WHERE s.id = ? AND g.user_id = ?
+    `);
+    const supplication = ownerCheckStmt.get(supplicationId, userId);
+
+    if (!supplication) {
+        return next(new AppError('Supplication not found or not owned by user', 404));
+    }
+
+    // Reset count
+    const updateStmt = db.prepare('UPDATE supplications SET currentCount = 0 WHERE id = ?');
+    updateStmt.run(supplicationId);
+
+    const selectStmt = db.prepare('SELECT * FROM supplications WHERE id = ?');
+    const updatedSupplication = selectStmt.get(supplicationId);
+
+    res.json(updatedSupplication);
+}));
 
 // Reset all supplications in a group
-app.post('/api/groups/:groupId/reset', authenticateToken, (req, res) => {
+app.post('/api/groups/:groupId/reset', authenticateToken, validateParams(groupIdSchema), catchAsync(async (req, res, next) => {
     const { groupId } = req.params;
     const userId = req.user.id;
 
-    try {
-        // Verify the group belongs to the user
-        const groupStmt = db.prepare('SELECT * FROM groups WHERE id = ? AND user_id = ?');
-        const group = groupStmt.get(groupId, userId);
+    // Verify the group belongs to the user
+    const groupStmt = db.prepare('SELECT * FROM groups WHERE id = ? AND user_id = ?');
+    const group = groupStmt.get(groupId, userId);
 
-        if (!group) {
-            return res.status(404).json({ message: 'Group not found' });
-        }
-
-        // Reset all supplications in the group
-        const resetStmt = db.prepare(`
-            UPDATE supplications
-            SET currentCount = 0
-            WHERE group_id = ?
-        `);
-        resetStmt.run(groupId);
-
-        // Get all updated supplications
-        const selectStmt = db.prepare('SELECT * FROM supplications WHERE group_id = ? ORDER BY position ASC');
-        const supplications = selectStmt.all(groupId);
-
-        res.json(supplications);
-    } catch (e) {
-        console.error('Error resetting group supplications:', e);
-        res.status(500).json({ message: 'Failed to reset group supplications' });
+    if (!group) {
+        return next(new AppError('Group not found or not owned by user', 404));
     }
-});
+
+    // Reset all supplications in the group
+    const resetStmt = db.prepare(`
+        UPDATE supplications
+        SET currentCount = 0
+        WHERE group_id = ?
+    `);
+    resetStmt.run(groupId);
+
+    // Get all updated supplications
+    const selectStmt = db.prepare('SELECT * FROM supplications WHERE group_id = ? ORDER BY position ASC');
+    const supplications = selectStmt.all(groupId);
+
+    res.json(supplications);
+}));
 
 // Reorder supplications in a group
-app.post('/api/groups/:groupId/reorder', authenticateToken, (req, res) => {
+app.post('/api/groups/:groupId/reorder', authenticateToken, validateParams(groupIdSchema), validate(reorderSupplicationsSchema), catchAsync(async (req, res, next) => {
     const { groupId } = req.params;
     const { supplicationIds } = req.body; // Array of supplication IDs in new order
     const userId = req.user.id;
 
-    try {
-        // Verify group belongs to user
-        const groupStmt = db.prepare('SELECT * FROM groups WHERE id = ? AND user_id = ?');
-        const group = groupStmt.get(groupId, userId);
-        if (!group) {
-            return res.status(404).json({ message: 'Group not found' });
-        }
+    // Verify group belongs to user
+    const groupStmt = db.prepare('SELECT * FROM groups WHERE id = ? AND user_id = ?');
+    const group = groupStmt.get(groupId, userId);
 
-        // Update positions
-        const updateStmt = db.prepare('UPDATE supplications SET position = ? WHERE id = ? AND group_id = ?');
-        supplicationIds.forEach((supplicationId, index) => {
-            updateStmt.run(index, supplicationId, groupId);
-        });
-
-        // Get all updated supplications
-        const selectStmt = db.prepare('SELECT * FROM supplications WHERE group_id = ? ORDER BY position ASC');
-        const supplications = selectStmt.all(groupId);
-
-        res.json(supplications);
-    } catch (e) {
-        console.error('Error reordering supplications:', e);
-        res.status(500).json({ message: 'Failed to reorder supplications' });
+    if (!group) {
+        return next(new AppError('Group not found or not owned by user', 404));
     }
-});
+
+    // Update positions
+    const updateStmt = db.prepare('UPDATE supplications SET position = ? WHERE id = ? AND group_id = ?');
+    supplicationIds.forEach((supplicationId, index) => {
+        updateStmt.run(index, supplicationId, groupId);
+    });
+
+    // Get all updated supplications
+    const selectStmt = db.prepare('SELECT * FROM supplications WHERE group_id = ? ORDER BY position ASC');
+    const supplications = selectStmt.all(groupId);
+
+    res.json(supplications);
+}));
 
 // --- STATISTICS ENDPOINTS ---
 
 // Get statistics summary
-app.get('/api/statistics/summary', authenticateToken, (req, res) => {
+app.get('/api/statistics/summary', authenticateToken, catchAsync(async (req, res) => {
     const userId = req.user.id;
 
-    try {
-        const now = Date.now();
-        const oneDayAgo = now - (24 * 60 * 60 * 1000);
-        const oneWeekAgo = now - (7 * 24 * 60 * 60 * 1000);
-        const oneMonthAgo = now - (30 * 24 * 60 * 60 * 1000);
+    const now = Date.now();
+    const oneDayAgo = now - (24 * 60 * 60 * 1000);
+    const oneWeekAgo = now - (7 * 24 * 60 * 60 * 1000);
+    const oneMonthAgo = now - (30 * 24 * 60 * 60 * 1000);
 
-        // Today's count
-        const todayStmt = db.prepare(`
-            SELECT SUM(count) as total
-            FROM count_history
-            WHERE user_id = ? AND timestamp >= ?
-        `);
-        const todayResult = todayStmt.get(userId, oneDayAgo);
+    // Today's count
+    const todayStmt = db.prepare(`
+        SELECT SUM(count) as total
+        FROM count_history
+        WHERE user_id = ? AND timestamp >= ?
+    `);
+    const todayResult = todayStmt.get(userId, oneDayAgo);
 
-        // Week's count
-        const weekStmt = db.prepare(`
-            SELECT SUM(count) as total
-            FROM count_history
-            WHERE user_id = ? AND timestamp >= ?
-        `);
-        const weekResult = weekStmt.get(userId, oneWeekAgo);
+    // Week's count
+    const weekStmt = db.prepare(`
+        SELECT SUM(count) as total
+        FROM count_history
+        WHERE user_id = ? AND timestamp >= ?
+    `);
+    const weekResult = weekStmt.get(userId, oneWeekAgo);
 
-        // Month's count
-        const monthStmt = db.prepare(`
-            SELECT SUM(count) as total
-            FROM count_history
-            WHERE user_id = ? AND timestamp >= ?
-        `);
-        const monthResult = monthStmt.get(userId, oneMonthAgo);
+    // Month's count
+    const monthStmt = db.prepare(`
+        SELECT SUM(count) as total
+        FROM count_history
+        WHERE user_id = ? AND timestamp >= ?
+    `);
+    const monthResult = monthStmt.get(userId, oneMonthAgo);
 
-        // All-time count
-        const allTimeStmt = db.prepare(`
-            SELECT SUM(count) as total
-            FROM count_history
-            WHERE user_id = ?
-        `);
-        const allTimeResult = allTimeStmt.get(userId);
+    // All-time count
+    const allTimeStmt = db.prepare(`
+        SELECT SUM(count) as total
+        FROM count_history
+        WHERE user_id = ?
+    `);
+    const allTimeResult = allTimeStmt.get(userId);
 
-        // Total supplications
-        const totalSupplicationsStmt = db.prepare(`
-            SELECT COUNT(*) as total
-            FROM supplications s
-            JOIN groups g ON s.group_id = g.id
-            WHERE g.user_id = ?
-        `);
-        const totalSupplications = totalSupplicationsStmt.get(userId);
+    // Total supplications
+    const totalSupplicationsStmt = db.prepare(`
+        SELECT COUNT(*) as total
+        FROM supplications s
+        JOIN groups g ON s.group_id = g.id
+        WHERE g.user_id = ?
+    `);
+    const totalSupplications = totalSupplicationsStmt.get(userId);
 
-        // Completed supplications
-        const completedStmt = db.prepare(`
-            SELECT COUNT(*) as total
-            FROM supplications s
-            JOIN groups g ON s.group_id = g.id
-            WHERE g.user_id = ? AND s.currentCount >= s.target
-        `);
-        const completedSupplications = completedStmt.get(userId);
+    // Completed supplications
+    const completedStmt = db.prepare(`
+        SELECT COUNT(*) as total
+        FROM supplications s
+        JOIN groups g ON s.group_id = g.id
+        WHERE g.user_id = ? AND s.currentCount >= s.target
+    `);
+    const completedSupplications = completedStmt.get(userId);
 
-        res.json({
-            today: todayResult?.total || 0,
-            week: weekResult?.total || 0,
-            month: monthResult?.total || 0,
-            allTime: allTimeResult?.total || 0,
-            totalSupplications: totalSupplications?.total || 0,
-            completedSupplications: completedSupplications?.total || 0
-        });
-    } catch (e) {
-        console.error('Failed to get statistics summary:', e);
-        res.status(500).json({ message: 'Failed to get statistics' });
-    }
-});
+    res.json({
+        today: todayResult?.total || 0,
+        week: weekResult?.total || 0,
+        month: monthResult?.total || 0,
+        allTime: allTimeResult?.total || 0,
+        totalSupplications: totalSupplications?.total || 0,
+        completedSupplications: completedSupplications?.total || 0
+    });
+}));
 
 // Get daily counts for charts (last 30 days)
-app.get('/api/statistics/daily', authenticateToken, (req, res) => {
+app.get('/api/statistics/daily', authenticateToken, validateQuery(daysQuerySchema), catchAsync(async (req, res) => {
     const userId = req.user.id;
-    const days = parseInt(req.query.days) || 30;
+    const days = req.query.days;
 
-    try {
-        const now = Date.now();
-        const startTime = now - (days * 24 * 60 * 60 * 1000);
+    const now = Date.now();
+    const startTime = now - (days * 24 * 60 * 60 * 1000);
 
-        const stmt = db.prepare(`
-            SELECT
-                DATE(timestamp / 1000, 'unixepoch') as date,
-                SUM(count) as total
-            FROM count_history
-            WHERE user_id = ? AND timestamp >= ?
-            GROUP BY DATE(timestamp / 1000, 'unixepoch')
-            ORDER BY date DESC
-        `);
+    const stmt = db.prepare(`
+        SELECT
+            DATE(timestamp / 1000, 'unixepoch') as date,
+            SUM(count) as total
+        FROM count_history
+        WHERE user_id = ? AND timestamp >= ?
+        GROUP BY DATE(timestamp / 1000, 'unixepoch')
+        ORDER BY date DESC
+    `);
 
-        const results = stmt.all(userId, startTime);
-        res.json(results);
-    } catch (e) {
-        console.error('Failed to get daily statistics:', e);
-        res.status(500).json({ message: 'Failed to get daily statistics' });
-    }
-});
+    const results = stmt.all(userId, startTime);
+    res.json(results);
+}));
 
 // Get top supplications by count
-app.get('/api/statistics/top', authenticateToken, (req, res) => {
+app.get('/api/statistics/top', authenticateToken, validateQuery(limitQuerySchema), catchAsync(async (req, res) => {
     const userId = req.user.id;
-    const limit = parseInt(req.query.limit) || 5;
+    const limit = req.query.limit;
 
-    try {
-        const stmt = db.prepare(`
-            SELECT
-                s.id,
-                s.title,
-                s.text,
-                s.currentCount,
-                s.target,
-                SUM(ch.count) as totalCounted,
-                g.name as groupName
-            FROM supplications s
-            JOIN groups g ON s.group_id = g.id
-            LEFT JOIN count_history ch ON s.id = ch.supplication_id
-            WHERE g.user_id = ?
-            GROUP BY s.id
-            ORDER BY totalCounted DESC
-            LIMIT ?
-        `);
+    const stmt = db.prepare(`
+        SELECT
+            s.id,
+            s.title,
+            s.text,
+            s.currentCount,
+            s.target,
+            SUM(ch.count) as totalCounted,
+            g.name as groupName
+        FROM supplications s
+        JOIN groups g ON s.group_id = g.id
+        LEFT JOIN count_history ch ON s.id = ch.supplication_id
+        WHERE g.user_id = ?
+        GROUP BY s.id
+        ORDER BY totalCounted DESC
+        LIMIT ?
+    `);
 
-        const results = stmt.all(userId, limit);
-        res.json(results);
-    } catch (e) {
-        console.error('Failed to get top supplications:', e);
-        res.status(500).json({ message: 'Failed to get top supplications' });
-    }
-});
+    const results = stmt.all(userId, limit);
+    res.json(results);
+}));
 
 // --- LIBRARY ENDPOINT ---
 
 // Get Hisnul Muslim library data
-app.get('/api/library', (req, res) => {
-    try {
-        const fs = require('fs');
-        const path = require('path');
-        const libraryPath = path.join(__dirname, 'data', 'hisnul-muslim.json');
+app.get('/api/library', catchAsync(async (req, res, next) => {
+    const fs = require('fs');
+    const path = require('path');
+    const libraryPath = path.join(__dirname, 'data', 'hisnul-muslim.json');
 
-        if (!fs.existsSync(libraryPath)) {
-            return res.status(404).json({ message: 'Library not found' });
-        }
-
-        const libraryData = JSON.parse(fs.readFileSync(libraryPath, 'utf8'));
-        res.json(libraryData);
-    } catch (error) {
-        console.error('Failed to load library:', error);
-        res.status(500).json({ message: 'Failed to load library' });
+    if (!fs.existsSync(libraryPath)) {
+        return next(new AppError('Library not found', 404));
     }
-});
+
+    const libraryData = JSON.parse(fs.readFileSync(libraryPath, 'utf8'));
+    res.json(libraryData);
+}));
 
 // --- SETTINGS ENDPOINTS ---
 
 // Get user settings
-app.get('/api/settings', authenticateToken, (req, res) => {
+app.get('/api/settings', authenticateToken, catchAsync(async (req, res) => {
     const userId = req.user.id;
-    try {
-        let stmt = db.prepare('SELECT * FROM user_settings WHERE user_id = ?');
-        let settings = stmt.get(userId);
 
-        // If no settings exist, create default settings
-        if (!settings) {
-            const insertStmt = db.prepare(`
-                INSERT INTO user_settings (user_id, notifications_enabled, theme, default_font_size, default_font_weight)
-                VALUES (?, 0, 'auto', '2xs', 'bold')
-            `);
-            insertStmt.run(userId);
-            settings = {
-                user_id: userId,
-                notifications_enabled: 0,
-                theme: 'auto',
-                default_font_size: '2xs',
-                default_font_weight: 'bold'
-            };
-        }
+    let stmt = db.prepare('SELECT * FROM user_settings WHERE user_id = ?');
+    let settings = stmt.get(userId);
 
-        res.json({
-            userId: settings.user_id.toString(),
-            notificationsEnabled: Boolean(settings.notifications_enabled),
-            theme: settings.theme,
-            defaultFontSize: settings.default_font_size,
-            defaultFontWeight: settings.default_font_weight
-        });
-    } catch (e) {
-        console.error('Failed to get settings:', e);
-        res.status(500).json({ message: 'Failed to get settings' });
+    // If no settings exist, create default settings
+    if (!settings) {
+        const insertStmt = db.prepare(`
+            INSERT INTO user_settings (user_id, notifications_enabled, theme, default_font_size, default_font_weight)
+            VALUES (?, 0, 'auto', '2xs', 'bold')
+        `);
+        insertStmt.run(userId);
+        settings = {
+            user_id: userId,
+            notifications_enabled: 0,
+            theme: 'auto',
+            default_font_size: '2xs',
+            default_font_weight: 'bold'
+        };
     }
-});
+
+    res.json({
+        userId: settings.user_id.toString(),
+        notificationsEnabled: Boolean(settings.notifications_enabled),
+        theme: settings.theme,
+        defaultFontSize: settings.default_font_size,
+        defaultFontWeight: settings.default_font_weight
+    });
+}));
 
 // Update user settings
-app.put('/api/settings', authenticateToken, (req, res) => {
+app.put('/api/settings', authenticateToken, validate(updateSettingsSchema), catchAsync(async (req, res) => {
     const userId = req.user.id;
     const { notificationsEnabled, theme, defaultFontSize, defaultFontWeight } = req.body;
 
-    try {
-        const stmt = db.prepare(`
-            INSERT INTO user_settings (user_id, notifications_enabled, theme, default_font_size, default_font_weight)
-            VALUES (?, ?, ?, ?, ?)
-            ON CONFLICT(user_id) DO UPDATE SET
-                notifications_enabled = excluded.notifications_enabled,
-                theme = excluded.theme,
-                default_font_size = excluded.default_font_size,
-                default_font_weight = excluded.default_font_weight
-        `);
+    const stmt = db.prepare(`
+        INSERT INTO user_settings (user_id, notifications_enabled, theme, default_font_size, default_font_weight)
+        VALUES (?, ?, ?, ?, ?)
+        ON CONFLICT(user_id) DO UPDATE SET
+            notifications_enabled = excluded.notifications_enabled,
+            theme = excluded.theme,
+            default_font_size = excluded.default_font_size,
+            default_font_weight = excluded.default_font_weight
+    `);
 
-        stmt.run(
-            userId,
-            notificationsEnabled ? 1 : 0,
-            theme || 'auto',
-            defaultFontSize || '2xs',
-            defaultFontWeight || 'bold'
-        );
+    stmt.run(
+        userId,
+        notificationsEnabled ? 1 : 0,
+        theme || 'auto',
+        defaultFontSize || '2xs',
+        defaultFontWeight || 'bold'
+    );
 
-        res.json({
-            userId: userId.toString(),
-            notificationsEnabled: Boolean(notificationsEnabled),
-            theme: theme || 'auto',
-            defaultFontSize: defaultFontSize || '2xs',
-            defaultFontWeight: defaultFontWeight || 'bold'
-        });
-    } catch (e) {
-        console.error('Failed to update settings:', e);
-        res.status(500).json({ message: 'Failed to update settings' });
-    }
-});
+    res.json({
+        userId: userId.toString(),
+        notificationsEnabled: Boolean(notificationsEnabled),
+        theme: theme || 'auto',
+        defaultFontSize: defaultFontSize || '2xs',
+        defaultFontWeight: defaultFontWeight || 'bold'
+    });
+}));
 
 // Get reminder times
-app.get('/api/settings/reminders', authenticateToken, (req, res) => {
+app.get('/api/settings/reminders', authenticateToken, catchAsync(async (req, res) => {
     const userId = req.user.id;
-    try {
-        const stmt = db.prepare('SELECT * FROM reminder_times WHERE user_id = ? ORDER BY time ASC');
-        const reminders = stmt.all(userId);
 
-        res.json(reminders.map(r => ({
-            id: r.id.toString(),
-            userId: r.user_id.toString(),
-            time: r.time,
-            message: r.message,
-            enabled: Boolean(r.enabled)
-        })));
-    } catch (e) {
-        console.error('Failed to get reminders:', e);
-        res.status(500).json({ message: 'Failed to get reminders' });
-    }
-});
+    const stmt = db.prepare('SELECT * FROM reminder_times WHERE user_id = ? ORDER BY time ASC');
+    const reminders = stmt.all(userId);
+
+    res.json(reminders.map(r => ({
+        id: r.id.toString(),
+        userId: r.user_id.toString(),
+        time: r.time,
+        message: r.message,
+        enabled: Boolean(r.enabled)
+    })));
+}));
 
 // Add reminder time
-app.post('/api/settings/reminders', authenticateToken, (req, res) => {
+app.post('/api/settings/reminders', authenticateToken, validate(createReminderSchema), catchAsync(async (req, res) => {
     const userId = req.user.id;
     const { time, message, enabled } = req.body;
 
-    if (!time) {
-        return res.status(400).json({ message: 'Time is required' });
-    }
+    const stmt = db.prepare('INSERT INTO reminder_times (user_id, time, message, enabled) VALUES (?, ?, ?, ?)');
+    const info = stmt.run(userId, time, message || null, enabled !== false ? 1 : 0);
 
-    try {
-        const stmt = db.prepare('INSERT INTO reminder_times (user_id, time, message, enabled) VALUES (?, ?, ?, ?)');
-        const info = stmt.run(userId, time, message || null, enabled !== false ? 1 : 0);
-
-        res.status(201).json({
-            id: info.lastInsertRowid.toString(),
-            userId: userId.toString(),
-            time,
-            message: message || null,
-            enabled: enabled !== false
-        });
-    } catch (e) {
-        console.error('Failed to add reminder:', e);
-        res.status(500).json({ message: 'Failed to add reminder' });
-    }
-});
+    res.status(201).json({
+        id: info.lastInsertRowid.toString(),
+        userId: userId.toString(),
+        time,
+        message: message || null,
+        enabled: enabled !== false
+    });
+}));
 
 // Update reminder time
-app.put('/api/settings/reminders/:id', authenticateToken, (req, res) => {
+app.put('/api/settings/reminders/:id', authenticateToken, validateParams(idSchema), validate(updateReminderSchema), catchAsync(async (req, res, next) => {
     const userId = req.user.id;
     const { id } = req.params;
     const { time, message, enabled } = req.body;
 
-    try {
-        // Verify the reminder belongs to the user
-        const checkStmt = db.prepare('SELECT * FROM reminder_times WHERE id = ? AND user_id = ?');
-        const reminder = checkStmt.get(id, userId);
+    // Verify the reminder belongs to the user
+    const checkStmt = db.prepare('SELECT * FROM reminder_times WHERE id = ? AND user_id = ?');
+    const reminder = checkStmt.get(id, userId);
 
-        if (!reminder) {
-            return res.status(404).json({ message: 'Reminder not found' });
-        }
-
-        const stmt = db.prepare('UPDATE reminder_times SET time = ?, message = ?, enabled = ? WHERE id = ? AND user_id = ?');
-        stmt.run(time || reminder.time, message !== undefined ? message : reminder.message, enabled !== undefined ? (enabled ? 1 : 0) : reminder.enabled, id, userId);
-
-        res.json({
-            id: id,
-            userId: userId.toString(),
-            time: time || reminder.time,
-            message: message !== undefined ? message : reminder.message,
-            enabled: enabled !== undefined ? Boolean(enabled) : Boolean(reminder.enabled)
-        });
-    } catch (e) {
-        console.error('Failed to update reminder:', e);
-        res.status(500).json({ message: 'Failed to update reminder' });
+    if (!reminder) {
+        return next(new AppError('Reminder not found or not owned by user', 404));
     }
-});
+
+    const stmt = db.prepare('UPDATE reminder_times SET time = ?, message = ?, enabled = ? WHERE id = ? AND user_id = ?');
+    stmt.run(
+        time || reminder.time,
+        message !== undefined ? message : reminder.message,
+        enabled !== undefined ? (enabled ? 1 : 0) : reminder.enabled,
+        id,
+        userId
+    );
+
+    res.json({
+        id: id,
+        userId: userId.toString(),
+        time: time || reminder.time,
+        message: message !== undefined ? message : reminder.message,
+        enabled: enabled !== undefined ? Boolean(enabled) : Boolean(reminder.enabled)
+    });
+}));
 
 // Delete reminder time
-app.delete('/api/settings/reminders/:id', authenticateToken, (req, res) => {
+app.delete('/api/settings/reminders/:id', authenticateToken, validateParams(idSchema), catchAsync(async (req, res, next) => {
     const userId = req.user.id;
     const { id } = req.params;
 
-    try {
-        const stmt = db.prepare('DELETE FROM reminder_times WHERE id = ? AND user_id = ?');
-        const info = stmt.run(id, userId);
+    const stmt = db.prepare('DELETE FROM reminder_times WHERE id = ? AND user_id = ?');
+    const info = stmt.run(id, userId);
 
-        if (info.changes === 0) {
-            return res.status(404).json({ message: 'Reminder not found' });
-        }
-
-        res.json({ message: 'Reminder deleted successfully' });
-    } catch (e) {
-        console.error('Failed to delete reminder:', e);
-        res.status(500).json({ message: 'Failed to delete reminder' });
+    if (info.changes === 0) {
+        return next(new AppError('Reminder not found or not owned by user', 404));
     }
-});
+
+    res.sendStatus(204);
+}));
 
 // --- GLOBAL ERROR HANDLER ---
 // Must be defined AFTER all routes
