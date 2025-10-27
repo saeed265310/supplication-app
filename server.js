@@ -4,6 +4,27 @@ const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const db = require('./database.js');
 
+// Security middleware
+const { helmetConfig, generalLimiter, authLimiter, incrementLimiter } = require('./server/middleware/security');
+const sanitizeInput = require('./server/middleware/sanitize');
+const { errorHandler, catchAsync } = require('./server/middleware/errorHandler');
+const { validate } = require('./server/middleware/validate');
+const AppError = require('./server/utils/AppError');
+
+// Validators
+const { signupSchema, loginSchema } = require('./server/validators/auth.validator');
+const {
+  createGroupSchema,
+  createSupplicationSchema,
+  updateSupplicationSchema,
+  reorderSupplicationsSchema
+} = require('./server/validators/supplication.validator');
+const {
+  updateSettingsSchema,
+  createReminderSchema,
+  updateReminderSchema
+} = require('./server/validators/settings.validator');
+
 const app = express();
 const PORT = process.env.PORT || 3001;
 const JWT_SECRET = process.env.JWT_SECRET || 'your-super-secret-key-that-should-be-in-an-env-file';
@@ -21,11 +42,17 @@ const corsOptions = {
     optionsSuccessStatus: 200
 };
 
-app.use(cors(corsOptions));
-app.use(express.json());
-
 // Trust proxy for nginx proxy manager / reverse proxy
 app.set('trust proxy', true);
+
+// Security middleware - Applied FIRST
+app.use(helmetConfig);
+app.use(cors(corsOptions));
+app.use(express.json({ limit: '10mb' })); // Limit payload size
+app.use(sanitizeInput); // Sanitize all inputs to prevent XSS
+
+// Apply general rate limiter to all /api routes
+app.use('/api', generalLimiter);
 
 // --- HEALTH CHECK ---
 
@@ -54,104 +81,106 @@ app.get('/api/health', (req, res) => {
 
 // --- AUTHENTICATION ---
 
-// Signup
-app.post('/api/signup', (req, res) => {
+// Signup - with validation and rate limiting
+app.post('/api/signup', authLimiter, validate(signupSchema), catchAsync(async (req, res, next) => {
     const { username, password } = req.body;
-    if (!username || !password) {
-        return res.status(400).json({ message: 'Username and password are required' });
-    }
 
-    const saltRounds = 10;
-    bcrypt.hash(password, saltRounds, (err, hash) => {
-        if (err) {
-            return res.status(500).json({ message: 'Error hashing password' });
-        }
-        const stmt = db.prepare('INSERT INTO users (username, password) VALUES (?, ?)');
-        try {
-            const info = stmt.run(username, hash);
-            const user = { id: info.lastInsertRowid, username };
-            
-            const token = jwt.sign({ id: user.id, username: user.username }, JWT_SECRET, { expiresIn: '1d' });
-            res.status(201).json({ user: { username: user.username }, token });
-        } catch (dbError) {
-            if (dbError.code === 'SQLITE_CONSTRAINT_UNIQUE') {
-                return res.status(409).json({ message: 'User already exists' });
-            }
-            res.status(500).json({ message: 'Error creating user' });
-        }
+    // Hash password
+    const hash = await bcrypt.hash(password, 10);
+
+    // Create user
+    const stmt = db.prepare('INSERT INTO users (username, password) VALUES (?, ?)');
+    const info = stmt.run(username, hash);
+    const user = { id: info.lastInsertRowid, username };
+
+    // Generate token
+    const token = jwt.sign({ id: user.id, username: user.username }, JWT_SECRET, { expiresIn: '1d' });
+
+    res.status(201).json({
+        user: { username: user.username },
+        token
     });
-});
+}));
 
-// Login
-app.post('/api/login', (req, res) => {
+// Login - with validation and rate limiting
+app.post('/api/login', authLimiter, validate(loginSchema), catchAsync(async (req, res, next) => {
     const { username, password } = req.body;
+
+    // Get user
     const stmt = db.prepare('SELECT * FROM users WHERE username = ?');
     const user = stmt.get(username);
 
-    if (!user) {
-        return res.status(401).json({ message: 'Invalid credentials' });
+    // Check if user exists and password is correct
+    if (!user || !(await bcrypt.compare(password, user.password))) {
+        return next(new AppError('Invalid credentials', 401));
     }
 
-    bcrypt.compare(password, user.password, (err, result) => {
-        if (result) {
-            const token = jwt.sign({ id: user.id, username: user.username }, JWT_SECRET, { expiresIn: '1d' });
-            res.json({ user: { username: user.username }, token });
-        } else {
-            res.status(401).json({ message: 'Invalid credentials' });
-        }
-    });
-});
+    // Generate token
+    const token = jwt.sign({ id: user.id, username: user.username }, JWT_SECRET, { expiresIn: '1d' });
 
-// Auth Middleware
+    res.json({
+        user: { username: user.username },
+        token
+    });
+}));
+
+// Auth Middleware - Updated to use AppError
 const authenticateToken = (req, res, next) => {
     const authHeader = req.headers['authorization'];
     const token = authHeader && authHeader.split(' ')[1];
-    if (token == null) return res.sendStatus(401);
+
+    if (!token) {
+        return next(new AppError('No token provided. Please log in.', 401));
+    }
 
     jwt.verify(token, JWT_SECRET, (err, user) => {
-        if (err) return res.sendStatus(403);
+        if (err) {
+            if (err.name === 'TokenExpiredError') {
+                return next(new AppError('Your token has expired. Please log in again.', 401));
+            }
+            return next(new AppError('Invalid token. Please log in again.', 403));
+        }
         req.user = user;
         next();
     });
 };
 
 // Check Auth Status
-app.get('/api/check-auth', authenticateToken, (req, res) => {
+app.get('/api/check-auth', authenticateToken, catchAsync(async (req, res) => {
     res.json({ user: { username: req.user.username } });
-});
+}));
 
 
 // --- DATA ROUTES ---
 
 // Get all user data (groups and supplications)
-app.get('/api/data', authenticateToken, (req, res) => {
+app.get('/api/data', authenticateToken, catchAsync(async (req, res) => {
     const userId = req.user.id;
     const groupsStmt = db.prepare('SELECT * FROM groups WHERE user_id = ?');
     const supplicationsStmt = db.prepare('SELECT * FROM supplications WHERE group_id = ? ORDER BY position ASC');
 
-    try {
-        const groups = groupsStmt.all(userId).map(group => {
-            const supplications = supplicationsStmt.all(group.id);
-            return { ...group, supplications };
-        });
-        res.json({ groups });
-    } catch(e) {
-        res.status(500).json({ message: 'Failed to fetch data' });
-    }
-});
+    const groups = groupsStmt.all(userId).map(group => {
+        const supplications = supplicationsStmt.all(group.id);
+        return { ...group, supplications };
+    });
 
-// Add a group
-app.post('/api/groups', authenticateToken, (req, res) => {
+    res.json({ groups });
+}));
+
+// Add a group - with validation
+app.post('/api/groups', authenticateToken, validate(createGroupSchema), catchAsync(async (req, res) => {
     const { name } = req.body;
     const userId = req.user.id;
     const stmt = db.prepare('INSERT INTO groups (name, user_id) VALUES (?, ?)');
-    try {
-        const info = stmt.run(name, userId);
-        res.status(201).json({ id: info.lastInsertRowid, name, user_id: userId, supplications: [] });
-    } catch (e) {
-        res.status(500).json({ message: 'Failed to create group' });
-    }
-});
+    const info = stmt.run(name, userId);
+
+    res.status(201).json({
+        id: info.lastInsertRowid,
+        name,
+        user_id: userId,
+        supplications: []
+    });
+}));
 
 // Delete a group
 app.delete('/api/groups/:groupId', authenticateToken, (req, res) => {
@@ -653,6 +682,16 @@ app.delete('/api/settings/reminders/:id', authenticateToken, (req, res) => {
     }
 });
 
+// --- GLOBAL ERROR HANDLER ---
+// Must be defined AFTER all routes
+
+// Handle 404 errors
+app.all('*', (req, res, next) => {
+    next(new AppError(`Cannot find ${req.originalUrl} on this server`, 404));
+});
+
+// Global error handling middleware
+app.use(errorHandler);
 
 app.listen(PORT, () => {
     console.log(`Server is running on http://localhost:${PORT}`);

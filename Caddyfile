@@ -1,15 +1,36 @@
 :80 {
-    root * /srv
-    encode gzip
+    # Proxy API requests to backend (internal Docker network)
+    handle /api/* {
+        reverse_proxy supplication-backend:3001 {
+            # Health check
+            health_uri /api/health
+            health_interval 10s
+            health_timeout 5s
 
-    # Try serving files, fallback to index.html for SPA routing
-    try_files {path} /index.html
-    file_server
+            # Preserve headers
+            header_up Host {host}
+            header_up X-Real-IP {remote_host}
+            header_up X-Forwarded-For {remote_host}
+            header_up X-Forwarded-Proto {scheme}
+        }
+    }
+
+    # Serve static frontend files
+    handle {
+        root * /srv
+        encode gzip
+
+        # Try serving files, fallback to index.html for SPA routing
+        try_files {path} /index.html
+        file_server
+    }
 
     # Security headers
     header {
         X-Content-Type-Options "nosniff"
         X-Frame-Options "DENY"
-        Referrer-Policy "no-referrer-when-downgrade"
+        Referrer-Policy "strict-origin-when-cross-origin"
+        Permissions-Policy "geolocation=(), microphone=(), camera=()"
+        # Remove X-XSS-Protection (deprecated, can cause issues)
     }
 }
