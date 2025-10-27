@@ -9,11 +9,12 @@ services:
       - NODE_ENV=production
       - JWT_SECRET=${JWT_SECRET:-change-this-secret-in-production}
       - PORT=3001
-      - CORS_ORIGIN=${CORS_ORIGIN:-http://localhost}
+      - CORS_ORIGIN=https://supplication.saeed201.duckdns.org
     volumes:
       - ./data:/app/data
-    ports:
-      - "3002:3001"  # Using 3002 to avoid conflict with other services
+    # Port removed - backend only accessible via frontend proxy
+    # ports:
+    #   - "3002:3001"
     healthcheck:
       test: ["CMD", "node", "-e", "require('http').get('http://localhost:3001/api/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"]
       interval: 30s
@@ -28,7 +29,8 @@ services:
       context: .
       dockerfile: Dockerfile.frontend
       args:
-        - VITE_API_URL=${VITE_API_URL:-http://localhost:3002/api}
+        # Use relative URL - API requests go through Caddy proxy
+        - VITE_API_URL=/api
     container_name: supplication-frontend
     restart: unless-stopped
     ports:
