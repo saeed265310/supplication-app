@@ -23,6 +23,9 @@ const helmetConfig = helmet({
 
 /**
  * Rate limiter for general API requests
+ * Note: validate.trustProxy is set to false because we're behind a reverse proxy
+ * and need to trust the X-Forwarded-For header. In production, ensure your
+ * reverse proxy (nginx/caddy) is configured to set this header correctly.
  */
 const generalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
@@ -30,6 +33,7 @@ const generalLimiter = rateLimit({
   message: 'Too many requests from this IP, please try again later.',
   standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
   legacyHeaders: false, // Disable the `X-RateLimit-*` headers
+  validate: { trustProxy: false }, // We're behind a reverse proxy
 });
 
 /**
@@ -40,6 +44,7 @@ const authLimiter = rateLimit({
   max: 5, // Limit each IP to 5 login requests per windowMs
   message: 'Too many authentication attempts from this IP, please try again after 15 minutes.',
   skipSuccessfulRequests: true, // Don't count successful requests
+  validate: { trustProxy: false }, // We're behind a reverse proxy
 });
 
 /**
@@ -50,6 +55,7 @@ const incrementLimiter = rateLimit({
   windowMs: 1 * 60 * 1000, // 1 minute
   max: 100, // Limit each IP to 100 increments per minute
   message: 'Too many count increments, please slow down.',
+  validate: { trustProxy: false }, // We're behind a reverse proxy
 });
 
 module.exports = {
