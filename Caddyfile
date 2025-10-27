@@ -7,11 +7,9 @@
             health_interval 10s
             health_timeout 5s
 
-            # Preserve headers
+            # Preserve headers - Host is required for proper routing
             header_up Host {host}
             header_up X-Real-IP {remote_host}
-            header_up X-Forwarded-For {remote_host}
-            header_up X-Forwarded-Proto {scheme}
         }
     }
 
@@ -27,10 +25,19 @@
 
     # Security headers
     header {
+        # Prevent MIME type sniffing
         X-Content-Type-Options "nosniff"
+
+        # Prevent clickjacking
         X-Frame-Options "DENY"
+
+        # Control referrer information
         Referrer-Policy "strict-origin-when-cross-origin"
+
+        # Control browser features
         Permissions-Policy "geolocation=(), microphone=(), camera=()"
-        # Remove X-XSS-Protection (deprecated, can cause issues)
+
+        # Content Security Policy - strict defaults for security
+        Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
     }
 }
